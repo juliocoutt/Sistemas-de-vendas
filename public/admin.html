@@ -103,7 +103,9 @@
 /* ── Autenticação ── */
 if (!API.checkAuth()) { /* checkAuth redireciona */ }
 const user = API.getUsuario();
-document.getElementById('sidebarUser').textContent = `👤 ${user.nome}`;
+if (user) {
+  document.getElementById('sidebarUser').textContent = `👤 ${user.nome}`;
+}
 
 /* ── Navegação ── */
 const pages = ['dashboard','financeiro','vendas','produtos','kits','estoque','clientes','lojas','vendedores','comissoes','campanhas','entregadores','entregas','mensageria'];
@@ -483,10 +485,10 @@ function abrirModalCliente() {
 }
 
 async function buscarCep(cep) {
-  cep = cep.replace(/\\D/g, '');
+  cep = cep.replace(/\D/g, '');
   if (cep.length !== 8) return;
   try {
-    const res = await fetch(\`https://viacep.com.br/ws/\${cep}/json/\`);
+    const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
     const data = await res.json();
     if (!data.erro) {
       document.getElementById('cRua').value = data.logradouro;
@@ -513,9 +515,9 @@ async function salvarCliente() {
   
   let endereco = '';
   if (rua) {
-    endereco = \`\${rua}, \${num}\`;
-    if(comp) endereco += \` - \${comp}\`;
-    endereco += \` - \${bairro}, \${cidade} - \${uf}\`;
+    endereco = `${rua}, ${num}`;
+    if(comp) endereco += ` - ${comp}`;
+    endereco += ` - ${bairro}, ${cidade} - ${uf}`;
   }
 
   if (!nome) { showToast('Nome é obrigatório.', 'error'); return; }
@@ -1074,7 +1076,7 @@ async function confirmarDespacho(id) {
   const entregador_id = document.getElementById('despEntregador').value;
   if (!entregador_id) { showToast('Selecione o entregador', 'error'); return; }
   try {
-    await API.put(\`/entregas/\${id}/status\`, { status: 'em_rota', entregador_id });
+    await API.put(`/entregas/${id}/status`, { status: 'em_rota', entregador_id });
     showToast('Entrega despachada!', 'success');
     fecharModal(); renderEntregas();
   } catch (e) { showToast(e.message, 'error'); }
@@ -1082,7 +1084,7 @@ async function confirmarDespacho(id) {
 
 async function atualizarStatusEntrega(id, status) {
   try {
-    await API.put(\`/entregas/\${id}/status\`, { status });
+    await API.put(`/entregas/${id}/status`, { status });
     showToast('Status atualizado!', 'success');
     renderEntregas();
   } catch (e) { showToast(e.message, 'error'); }
@@ -1139,7 +1141,7 @@ async function dispararMensagem() {
 
   try {
     const res = await API.post('/mensageria/disparo', { publico, canal, mensagem });
-    showToast(\`Mensagem disparada para \${res.count} clientes!\`, 'success');
+    showToast(`Mensagem disparada para ${res.count} clientes!`, 'success');
     document.getElementById('msgTexto').value = '';
   } catch (e) {
     showToast(e.message, 'error');
