@@ -1,5 +1,23 @@
--- Schema PostgreSQL para o Supabase (VarejoOS)
+-- ==================================================================================
+--              📘 MODELAGEM DE BANCO DE DADOS (POSTGRESQL / SUPABASE) — VAREJOOS
+-- ==================================================================================
+-- Este arquivo define todas as tabelas do sistema de banco de dados do VarejoOS.
+-- Ele garante a integridade referencial por meio de chaves estrangeiras (REFERENCES).
+-- 
+-- ----------------------------------------------------------------------------------
+-- 📊 TABELAS E SEUS PAPÉIS OPERACIONAIS:
+-- ----------------------------------------------------------------------------------
+-- 1. Lojas: Cadastro base das unidades físicas.
+-- 2. Usuários: Funcionários (superadmin, admin, gestor, vendedor) com permissões.
+-- 3. Caixas / Sangrias: Controle financeiro diário e retiradas no PDV.
+-- 4. Clientes: CRM, pontuação fidelidade, carteira digital de devoluções.
+-- 5. Produtos / Estoque / Movimentações: Catálogo, custos e rastreabilidade total.
+-- 6. Vendas / Itens: Notas fiscais/cupons, desconto com senha, e entregas.
+-- 7. Contas Pagar / Receber: Controle de fluxo de caixa operacional.
+-- 8. CRM Kanban / Tickets / Interações: Funil de vendas, SAC e relacionamento.
+-- ==================================================================================
 -- Copie e cole este código no SQL Editor do Supabase e clique em RUN.
+
 
 CREATE TABLE IF NOT EXISTS lojas (
     id SERIAL PRIMARY KEY,

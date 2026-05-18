@@ -1,12 +1,59 @@
-const express = require('express');
-const path = require('path');
-const fs = require('fs');
-require('dotenv').config();
-const { Pool } = require('pg');
+/**
+ * ==================================================================================
+ *                       MANUAL DE ARQUITETURA E ESTRUTURA DO VAREJOOS
+ * ==================================================================================
+ * Este arquivo (server.js) representa o CORE do BACKEND da aplicação. Ele é
+ * responsável por gerenciar a comunicação com o Banco de Dados PostgreSQL (Supabase)
+ * e expor as APIs (rotas) consumidas pela interface do usuário (Frontend).
+ * 
+ * ----------------------------------------------------------------------------------
+ * 📐 ARQUITETURA GERAL DO SISTEMA:
+ * ----------------------------------------------------------------------------------
+ * O sistema segue o modelo cliente-servidor tradicional, altamente otimizado:
+ * 
+ *     [Navegador Web]  <=========>  [API REST (server.js)]  <=========>  [Banco de Dados]
+ *      HTML5 / CSS3                      Node.js / Express               Supabase (PostgreSQL)
+ *    (public/admin.html)                 (Serviço Web)                   (Tabelas Relacionais)
+ * 
+ * ----------------------------------------------------------------------------------
+ * 📦 ESTRUTURA DE MÓDULOS E FUNCIONALIDADES:
+ * ----------------------------------------------------------------------------------
+ * Para facilitar a manutenção e evolução do código, este arquivo está dividido em:
+ * 
+ *   1. 🚪 SEGURANÇA & AUTH: Rotas de login e gerenciamento de perfil (/api/login).
+ *   2. 🏬 LOJAS & CONFIGS: Cadastro de unidades e logo do sistema (/api/lojas).
+ *   3. 📦 PRODUTOS & ESTOQUE: Cadastro de itens, variações, custo médio e controle
+ *      de estoque (entradas, saídas, ajustes manuais e relatórios).
+ *   4. 👥 CLIENTES & PONTOS: Cadastro de clientes, controle de pontuação e carteiras.
+ *   5. 🏪 VENDAS & PDV: Lançamento de vendas integrado com estoque, comissões,
+ *      controle de descontos e entrega (delivery).
+ *   6. 💸 FINANCEIRO (Contas Pagar/Receber e DRE): Lançamento de receitas/despesas
+ *      e geração automática do demonstrativo contábil (DRE).
+ *   7. 🧑‍💼 COMISSÕES & VENDEDORES: Relatório consolidado e taxas de comissões.
+ *   8. 👥 CRM INTELIGENTE & AUTOMAÇÃO:
+ *      - Aba 1: Visão 360° do Cliente (LTV, preferências de produtos e timeline).
+ *      - Aba 2: Kanban Comercial (Pipe de oportunidades de vendas).
+ *      - Aba 3: Pós-Venda (SAC Tickets com SLA e Logística Reversa de devoluções).
+ *      - Aba 4: Régua de Automações (WhatsApp de cobrança e campanhas de Upsell).
+ *   9. 🤖 CHATBOT DE SUPORTE: Assistente de IA para responder dúvidas do sistema.
+ * 
+ * ==================================================================================
+ */
+
+const express = require('express'); // Framework web para criar as rotas da API
+const path = require('path');       // Utilitário para caminhos de arquivos
+const fs = require('fs');           // Módulo do Node para manipular arquivos do sistema (Ler migrações)
+require('dotenv').config();         // Carrega as variáveis de ambiente locais do arquivo .env
+const { Pool } = require('pg');     // Driver de conexão oficial com o PostgreSQL do Supabase
 
 const app = express();
-const PORT = process.env.PORT || 3001;
-const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+const PORT = process.env.PORT || 3001; // Porta em que o servidor irá rodar
+
+// Configuração da conexão com o Banco de Dados do Supabase utilizando SSL para segurança
+const pool = new Pool({ 
+  connectionString: process.env.DATABASE_URL, 
+  ssl: { rejectUnauthorized: false } 
+});
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));

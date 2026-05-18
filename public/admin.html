@@ -1,3 +1,31 @@
+<!--
+  ==================================================================================
+                       MANUAL DE ARQUITETURA DO FRONTEND — VAREJOOS
+  ==================================================================================
+  Este arquivo (admin.html) representa a interface única do painel administrativo.
+  O sistema é estruturado como uma SPA (Single Page Application — Aplicação de Página Única),
+  onde todo o conteúdo de diferentes menus é carregado dinamicamente via Javascript
+  dentro da div "#pageContent" sem precisar recarregar a tela inteira.
+  
+  ----------------------------------------------------------------------------------
+  🎨 DESIGN SYSTEM & ELEMENTOS VISUAIS:
+  ----------------------------------------------------------------------------------
+  - Estilos baseados no arquivo 'css/style.css' utilizando paletas modernas, modo escuro
+    embutido e efeitos suaves (transições, sombras e gradientes).
+  - Sidebar lateral recolhível por intermédio do botão hamburguer (menuToggle).
+  
+  ----------------------------------------------------------------------------------
+  🔌 FLUXO DE CARREGAMENTO & DINÂMICA:
+  ----------------------------------------------------------------------------------
+  1. O arquivo `js/api.js` é incluído para fazer requisições seguras ao server.js.
+  2. A função global `showPage(nome)` limpa o contêiner central, atualiza o título
+     da barra superior e chama a função renderizadora correspondente (ex: renderDashboard).
+  3. Bibliotecas adicionais como SheetJS (xlsx.full.min.js) são importadas para a
+     geração direta e leitura rápida de arquivos de planilhas Excel.
+  4. Um widget de chatbot de suporte inteligente flutua no canto inferior direito
+     para auxiliar os usuários finais em tempo real.
+  ==================================================================================
+-->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
