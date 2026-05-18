@@ -3,9 +3,13 @@ const API = {
   base: '/api',
 
   async request(method, path, data) {
+    const u = this.getUsuario();
     const opts = {
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        ...(u ? { 'X-User-Role': u.role } : {})
+      },
     };
     if (data) opts.body = JSON.stringify(data);
     const resp = await fetch(this.base + path, opts);

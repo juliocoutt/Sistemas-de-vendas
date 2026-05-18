@@ -13,7 +13,7 @@
   <!-- ── Sidebar ── -->
   <aside class="sidebar">
     <div class="sidebar-logo">
-      <span>🏪 VarejoOS</span>
+      <span id="sidebarLogoText">🏪 VarejoOS</span>
       <small>Sistema de Varejo</small>
     </div>
     <nav class="sidebar-nav">
@@ -66,6 +66,9 @@
       <a class="nav-item" id="nav-mensageria" onclick="showPage('mensageria')">
         <span class="icon">💬</span><span>Mensageria</span>
       </a>
+      <a class="nav-item" id="nav-configuracoes" onclick="showPage('configuracoes')" style="display:none;">
+        <span class="icon">⚙️</span><span>Configurações</span>
+      </a>
     </nav>
     <div class="sidebar-footer">
       <span id="sidebarUser"></span><br>
@@ -105,20 +108,32 @@ if (!API.checkAuth()) { /* checkAuth redireciona */ }
 const user = API.getUsuario();
 if (user) {
   document.getElementById('sidebarUser').textContent = `👤 ${user.nome}`;
+  if (user.role === 'admin') {
+    const navConf = document.getElementById('nav-configuracoes');
+    if (navConf) navConf.style.display = 'flex';
+  }
 }
 
+// Carregar Configurações Dinâmicas (Logo)
+API.get('/configuracoes').then(config => {
+  if (config.logo_sistema) {
+    const sidebarLogo = document.getElementById('sidebarLogoText');
+    if (sidebarLogo) sidebarLogo.textContent = config.logo_sistema;
+  }
+}).catch(err => console.error('Erro ao carregar configurações dinâmicas:', err));
+
 /* ── Navegação ── */
-const pages = ['dashboard','financeiro','vendas','produtos','kits','estoque','clientes','lojas','vendedores','comissoes','campanhas','entregadores','entregas','mensageria'];
+const pages = ['dashboard','financeiro','vendas','produtos','kits','estoque','clientes','lojas','vendedores','comissoes','campanhas','entregadores','entregas','mensageria', 'configuracoes'];
 function showPage(name) {
   pages.forEach(p => document.getElementById(`nav-${p}`)?.classList.remove('active'));
   document.getElementById(`nav-${name}`)?.classList.add('active');
   document.getElementById('topbarActions').innerHTML = '';
-  const map = { dashboard:'Dashboard', financeiro:'Fluxo de Caixa', vendas:'Vendas', produtos:'Produtos', kits:'Kits e Combos', estoque:'Estoque', clientes:'Clientes', lojas:'Lojas', vendedores:'Vendedores', comissoes:'Comissões', campanhas:'Campanhas Promocionais', entregadores:'Entregadores', entregas:'Painel de Entregas', mensageria:'CRM / Mensageria' };
+  const map = { dashboard:'Dashboard', financeiro:'Fluxo de Caixa', vendas:'Vendas', produtos:'Produtos', kits:'Kits e Combos', estoque:'Estoque', clientes:'Clientes', lojas:'Lojas', vendedores:'Vendedores', comissoes:'Comissões', campanhas:'Campanhas Promocionais', entregadores:'Entregadores', entregas:'Painel de Entregas', mensageria:'CRM / Mensageria', configuracoes:'Configurações do Sistema' };
   document.getElementById('topbarTitle').textContent = map[name] || name;
   const pc = document.getElementById('pageContent');
   pc.style.opacity = '0';
   setTimeout(() => { pc.style.transition = 'opacity .3s'; pc.style.opacity = '1'; }, 10);
-  ({ dashboard: renderDashboard, financeiro: renderFinanceiro, vendas: renderVendas, produtos: renderProdutos, kits: renderKits, estoque: renderEstoque, clientes: renderClientes, lojas: renderLojas, vendedores: renderVendedores, comissoes: renderComissoes, campanhas: renderCampanhas, entregadores: renderEntregadores, entregas: renderEntregas, mensageria: renderMensageria })[name]?.();
+  ({ dashboard: renderDashboard, financeiro: renderFinanceiro, vendas: renderVendas, produtos: renderProdutos, kits: renderKits, estoque: renderEstoque, clientes: renderClientes, lojas: renderLojas, vendedores: renderVendedores, comissoes: renderComissoes, campanhas: renderCampanhas, entregadores: renderEntregadores, entregas: renderEntregas, mensageria: renderMensageria, configuracoes: renderConfiguracoes })[name]?.();
 }
 showPage('dashboard');
 
@@ -1154,6 +1169,104 @@ async function dispararMensagem() {
 /* ── Modal helpers ── */
 function fecharModal() { document.getElementById('modalGenerico').style.display = 'none'; }
 document.getElementById('modalGenerico').addEventListener('click', (e) => { if (e.target === document.getElementById('modalGenerico')) fecharModal(); });
+
+/* ── Configurações Dinâmicas (Logo e Banner) ── */
+async function renderConfiguracoes() {
+  const pc = document.getElementById('pageContent');
+  pc.innerHTML = `<div class="empty-state"><span class="spinner" style="width:32px;height:32px;border-width:3px;"></span></div>`;
+  try {
+    const config = await API.get('/configuracoes');
+    pc.innerHTML = `
+      <div class="card" style="max-width: 600px; margin: 0 auto; animation: fadeInUp 0.4s ease;">
+        <div class="card-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+          <h3 style="display:flex; align-items:center; gap:0.5rem; color:var(--primary);">⚙️ Configurações do Sistema</h3>
+        </div>
+        <div class="card-body" style="display:flex; flex-direction:column; gap:1.25rem;">
+          <p style="color:var(--text-secondary); margin: 0; font-size: 0.9rem; line-height: 1.4;">
+            Altere a identidade visual da plataforma. A logo será exibida no menu lateral interno e na tela de login, e o banner modificará o plano de fundo esquerdo do login.
+          </p>
+
+          <div class="input-group">
+            <label style="font-weight:600; color:var(--text-primary); margin-bottom:0.4rem; display:block;">Logo do Sistema</label>
+            <input type="text" id="configLogo" value="${config.logo_sistema || ''}" placeholder="Ex: 🏪 VarejoOS" style="width:100%; padding:0.75rem; border:1px solid var(--border-color); border-radius:var(--border-radius);">
+          </div>
+
+          <div class="input-group">
+            <label style="font-weight:600; color:var(--text-primary); margin-bottom:0.4rem; display:block;">Banner da Tela de Login</label>
+            <div style="display:flex; gap:0.75rem; align-items:center; margin-bottom:0.5rem;">
+              <input type="file" id="configBannerFile" accept="image/*" style="display:none;" onchange="handleBannerUpload(event)">
+              <button class="btn btn-secondary btn-sm" onclick="document.getElementById('configBannerFile').click()" style="padding:0.4rem 0.8rem; font-size:0.85rem;">📤 Upload de Imagem</button>
+              <span id="bannerFileName" style="font-size:0.8rem; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:250px;">Nenhum arquivo selecionado</span>
+            </div>
+            <input type="text" id="configBanner" value="${config.banner_login || ''}" placeholder="URL da Imagem ou código Base64..." style="width:100%; padding:0.75rem; border:1px solid var(--border-color); border-radius:var(--border-radius);">
+          </div>
+
+          <div id="bannerPreviewContainer" style="border: 1px dashed var(--border-color); border-radius: var(--border-radius); padding: 1rem; text-align: center; background: rgba(0,0,0,0.02);">
+            <label style="display:block; font-size:0.8rem; font-weight:600; margin-bottom:0.5rem; text-align:left; color:var(--text-secondary);">Prévia do Banner:</label>
+            <img id="bannerPreview" src="${config.banner_login || '/login-bg.jpg'}" style="max-width:100%; max-height:180px; border-radius: 4px; object-fit: contain; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+          </div>
+
+          <button class="btn btn-primary" onclick="salvarConfiguracoes()" id="btnSalvarConfig" style="width:100%; padding:0.85rem; font-weight:600; margin-top: 1rem; font-size: 1rem;">💾 Salvar Configurações</button>
+        </div>
+      </div>
+    `;
+  } catch (e) {
+    pc.innerHTML = `<div class="empty-state"><p>Erro ao carregar configurações.</p></div>`;
+  }
+}
+
+function handleBannerUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  if (file.size > 3 * 1024 * 1024) {
+    showToast('A imagem é muito grande. Escolha uma imagem de até 3MB.', 'error');
+    return;
+  }
+
+  document.getElementById('bannerFileName').textContent = file.name;
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const base64Data = e.target.result;
+    document.getElementById('configBanner').value = base64Data;
+    document.getElementById('bannerPreview').src = base64Data;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function salvarConfiguracoes() {
+  const logo = document.getElementById('configLogo').value.trim();
+  const banner = document.getElementById('configBanner').value.trim();
+  
+  if (!logo || !banner) {
+    showToast('Preencha todos os campos antes de salvar.', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btnSalvarConfig');
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+
+  try {
+    await API.post('/configuracoes', {
+      logo_sistema: logo,
+      banner_login: banner
+    });
+
+    showToast('Configurações salvas com sucesso! 🎉', 'success');
+    
+    // Atualizar em tempo real o menu lateral
+    const sidebarLogo = document.getElementById('sidebarLogoText');
+    if (sidebarLogo) sidebarLogo.textContent = logo;
+    
+  } catch (e) {
+    showToast(e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '💾 Salvar Configurações';
+  }
+}
 </script>
 </body>
 </html>
