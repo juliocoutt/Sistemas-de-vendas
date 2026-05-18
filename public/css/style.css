@@ -1,50 +1,50 @@
 /* ================================================================
-   Sistema de Varejo — Stylesheet Premium (Estilo Bizera POS)
-   Fonte: Poppins (Google Fonts)
-   Paleta: Light mode corporativo (Azul/Branco)
+   VarejoOS — Premium Dashboard (Estilo FINEbank)
+   Fonte: Inter (Google Fonts)
+   Paleta: Dark sidebar + Teal accent + Light gray
 ================================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 /* ── Reset & Base ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg-base:        #f1f7f6; /* Anti-Flash White / Soft green tint background */
+  --bg-base:        #F5F5F7;
   --bg-surface:     #ffffff;
   --bg-card:        #ffffff;
-  --bg-hover:       #daf1de; /* Pistachio / Soft highlight green */
-  --border:         #d4e2df; /* Pastel minty border */
+  --bg-hover:       #E8FAF0;
+  --border:         #E5E7EB;
 
-  --sidebar-bg:     #0b2b26; /* Deep forest green */
-  --sidebar-hover:  #163832; /* Rich medium green */
-  --sidebar-active: #8eb69b; /* Mint highlight */
+  --sidebar-bg:     #1A1D21;
+  --sidebar-hover:  #2A2D32;
+  --sidebar-active: #16DBCC;
   --sidebar-text:   #ffffff;
 
-  --primary:        #163832; /* Deepest active green */
-  --primary-hover:  #235347; /* Mid-tone forest green */
+  --primary:        #16DBCC;
+  --primary-hover:  #12B8A8;
 
-  --success:        #235347; /* Elegant success green */
-  --warning:        #f1c21b;
-  --danger:         #da1e28;
+  --success:        #16DBCC;
+  --warning:        #FFBB38;
+  --danger:         #FE5C73;
 
-  --text-primary:   #051f20; /* Deepest rich black green */
-  --text-secondary: #235347; /* Dark forest green for headers */
-  --text-muted:     #8eb69b; /* Mint green for muted subtitles */
+  --text-primary:   #232323;
+  --text-secondary: #718EBF;
+  --text-muted:     #B1B1B1;
 
-  --radius-sm:  8px;
-  --radius-md:  16px;
-  --radius-lg:  24px;
-  --shadow-sm:  0 2px 8px rgba(5,31,32,0.04);
-  --shadow-md:  0 8px 24px rgba(5,31,32,0.08);
-  --shadow-lg:  0 12px 48px rgba(5,31,32,0.12);
+  --radius-sm:  12px;
+  --radius-md:  20px;
+  --radius-lg:  25px;
+  --shadow-sm:  0 2px 10px rgba(0,0,0,0.04);
+  --shadow-md:  0 6px 20px rgba(0,0,0,0.06);
+  --shadow-lg:  0 12px 40px rgba(0,0,0,0.10);
 
   --transition: .2s cubic-bezier(.4,0,.2,1);
 }
 
 html { font-size: 16px; scroll-behavior: smooth; }
 body {
-  font-family: 'Poppins', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   background: var(--bg-base);
   color: var(--text-primary);
   min-height: 100vh;
@@ -53,10 +53,10 @@ body {
 }
 
 /* ── Scrollbar ── */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: var(--bg-base); }
-::-webkit-scrollbar-thumb { background: #8eb69b; border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: #235347; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
 
 /* ── Typography ── */
 h1 { font-size: 2rem; font-weight: 700; color: var(--text-primary); }
