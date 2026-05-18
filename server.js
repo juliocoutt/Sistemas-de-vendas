@@ -841,6 +841,76 @@ app.delete('/api/crm/oportunidades/:id', async (req, res) => {
 });
 
 // ── CRM: Tickets (Suporte / SAC) ──
+app.post('/api/chatbot', (req, res) => {
+  try {
+    const { mensagem } = req.body;
+    if (!mensagem) return res.status(400).json({ error: 'Mensagem vazia.' });
+
+    const msg = mensagem.toLowerCase();
+    let resposta = '';
+
+    if (msg.includes('cadastrar') && msg.includes('produto')) {
+      resposta = `Para cadastrar um produto, siga estes passos simples:
+1. Clique no menu lateral **Produtos**.
+2. Clique no botão **+ Novo Produto** no canto superior direito.
+3. Insira o nome do produto, preço de venda, SKU, custo e estoque inicial.
+4. Se quiser, faça upload de uma foto clicando na área de imagem.
+5. Clique em **Salvar** para registrar. 
+
+*Você também pode fazer a importação em massa via planilha de Excel utilizando o botão "Importar Planilha"!*`;
+    } else if (msg.includes('desconto') || msg.includes('senha')) {
+      resposta = `No **PDV (Frente de Caixa)**, os descontos funcionam assim:
+- **Desconto em Cupom:** Você pode selecionar ou aplicar cupons de campanhas promocionais ativas para dar descontos percentuais ou fixos.
+- **Desconto Manual:** Ao aplicar um desconto manual no valor final do carrinho, o sistema abrirá um modal de segurança **solicitando a senha do gerente/administrador** para validação do desconto. Isso garante o controle rígido das margens de lucro!`;
+    } else if (msg.includes('devol') || msg.includes('reembolso') || msg.includes('reversa')) {
+      resposta = `A **Logística Reversa (Devoluções e Trocas)** é totalmente integrada no módulo **CRM Inteligente**:
+1. Vá até o menu lateral **CRM Inteligente** -> aba **Pós-Venda**.
+2. No campo **Devoluções e Trocas**, informe o ID da Venda, selecione o Produto da lista, defina a Quantidade devolvida e adicione o Motivo.
+3. Ao confirmar, o sistema executa automaticamente:
+   - **Retorno de Estoque:** A quantidade do produto é devolvida imediatamente para o estoque de vendas.
+   - **Estorno Financeiro:** O valor integral devolvido é creditado diretamente na **Carteira Digital** do cliente (como \`saldo_carteira\`), e poderá ser resgatado como crédito em suas próximas compras!`;
+    } else if (msg.includes('comis') || msg.includes('vendedor')) {
+      resposta = `As **Comissões de Vendas** são automatizadas:
+- Cada vendedor tem uma **taxa de comissão individual** (%) que pode ser editada na tela lateral **Vendedores** clicando no ícone do lápis ✏️.
+- A cada venda realizada, o sistema calcula a comissão correspondente e a registra no banco de dados.
+- O relatório consolidado de comissões por vendedor pode ser visualizado na aba **Comissões** do menu lateral, agrupando o faturamento total, quantidade de vendas e valor líquido a ser pago de comissão.`;
+    } else if (msg.includes('caixa') || msg.includes('sangria') || msg.includes('abertura') || msg.includes('fechamento')) {
+      resposta = `O fluxo de **Caixas do PDV** é rigoroso:
+- **Abertura:** Para abrir o caixa, informe o valor de **Suprimento (troco inicial)**.
+- **Sangria:** Retiradas de dinheiro durante o expediente devem ser registradas informando o valor e motivo.
+- **Fechamento:** No encerramento do turno, o operador informa o saldo físico final. O sistema calcula a diferença automática de **Quebra de Caixa** (divergência entre o saldo esperado e o valor físico).
+- Todos os caixas ativos e históricos podem ser auditados no menu **Financeiro** -> aba **Caixas (PDV)**.`;
+    } else if (msg.includes('crm') || msg.includes('360')) {
+      resposta = `O **CRM Inteligente** consolida a visão 360° do cliente:
+- **Dados Cadastrais:** Nome, telefone, e-mail, segmento (VIP, Atacadista, etc) e limites de crédito.
+- **Histórico & Preferências:** Compras efetuadas, curva de preferência de produtos e última compra.
+- **Financeiro:** Limite total vs. disponível, faturas em aberto e LTV total.
+- **Timeline de Contatos:** Todas as interações (ligações, e-mails, visitas) registradas com o cliente.`;
+    } else if (msg.includes('automat') || msg.includes('whatsapp') || msg.includes('cobran')) {
+      resposta = `O sistema possui uma **Régua de Automações** no CRM para pós-venda e recuperação de crédito:
+- **Antes do Vencimento:** Notificação automática via WhatsApp 3 dias antes do vencimento do título.
+- **No Vencimento:** Alerta no próprio dia de vencimento.
+- **Atraso:** Mensagem de cobrança amigável 5 dias após o vencimento.
+- **Upsell:** Filtros de clientes baseados em preferências para disparos inteligentes.`;
+    } else if (msg.includes('dre') || msg.includes('contas a pagar') || msg.includes('contas a receber')) {
+      resposta = `O **Fluxo Financeiro** possui os seguintes componentes:
+- **Contas a Pagar / Receber:** Gerencie faturas de fornecedores e títulos de clientes, com status de pendência, data de vencimento e quitação.
+- **Visão Geral:** Balanço simplificado de receitas, despesas e saldo líquido real.
+- **DRE Simplificado:** Demonstrativo contendo faturamento bruto, custos de mercadorias vendidas, comissões de vendedores, despesas operacionais registradas e o **Lucro Líquido Real** com cálculo de margem percentual.`;
+    } else {
+      resposta = `Entendi sua dúvida sobre o sistema! O **VarejoOS** é uma plataforma completa que inclui:
+- **🏪 Frente de Caixa (PDV):** Lançamento ágil de vendas, cupons, controle de descontos com senha e delivery.
+- **📦 Produtos & Estoque:** Controle de variações, custo médio, alertas de estoque crítico e importações.
+- **👥 CRM Inteligente 360°:** Oportunidades no Kanban, tickets de suporte (SAC), logística reversa e automações.
+- **💰 Financeiro & DRE:** Contas a pagar, contas a receber, fluxo de caixa e relatórios de comissões automáticas.
+
+*Dica: experimente me perguntar sobre "cadastrar produto", "devolução", "desconto com senha" ou "comissão" para informações específicas!*`;
+    }
+
+    res.json({ resposta });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/crm/tickets', async (req, res) => {
   try {
     res.json(await asyncAll('SELECT t.*, c.nome as cliente_nome FROM crm_tickets t LEFT JOIN clientes c ON t.cliente_id = c.id ORDER BY t.id DESC'));

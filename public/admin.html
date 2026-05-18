@@ -3031,5 +3031,374 @@ async function importarEstoqueExcel(event) {
   reader.readAsArrayBuffer(file);
 }
 </script>
+
+<!-- ── Chatbot Inteligente Widget ── -->
+<div id="chatbot-widget">
+  <button id="chatbot-btn" onclick="toggleChatbot()" title="Suporte Inteligente VarejoOS">
+    <span class="chatbot-icon">💬</span>
+    <span class="chatbot-pulse"></span>
+  </button>
+  
+  <div id="chatbot-box" class="chatbot-hidden">
+    <div class="chatbot-header">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <span class="chatbot-avatar-header">🤖</span>
+        <div>
+          <h4 style="margin:0; font-size:0.95rem; color:#fff;">Assistente VarejoOS</h4>
+          <span style="font-size:0.75rem; color:rgba(255,255,255,0.8); display:flex; align-items:center; gap:0.25rem;">
+            <span style="width:6px; height:6px; background:#4ade80; border-radius:50%; display:inline-block;"></span>
+            Online • IA de Suporte
+          </span>
+        </div>
+      </div>
+      <button class="chatbot-close" onclick="toggleChatbot()">✕</button>
+    </div>
+    
+    <div class="chatbot-messages" id="chatbot-messages-container">
+      <div class="chatbot-msg chatbot-msg-ai">
+        <span class="msg-avatar">🤖</span>
+        <div class="msg-bubble">
+          Olá! Sou o assistente inteligente do <strong>VarejoOS</strong>. Como posso te ajudar hoje?
+          <div class="chatbot-quick-tips">
+            <button onclick="enviarDuvidaRapida('Como cadastrar produto?')">Como cadastrar produto?</button>
+            <button onclick="enviarDuvidaRapida('Como dar desconto no PDV?')">Como dar desconto?</button>
+            <button onclick="enviarDuvidaRapida('Como funciona o reembolso?')">Como funciona o reembolso?</button>
+            <button onclick="enviarDuvidaRapida('Como ver as comissões?')">Como ver comissões?</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="chatbot-footer">
+      <input type="text" id="chatbot-input" placeholder="Digite sua dúvida sobre o sistema..." onkeydown="if(event.key === 'Enter') enviarDuvidaChatbot()">
+      <button onclick="enviarDuvidaChatbot()" class="chatbot-send-btn">➔</button>
+    </div>
+  </div>
+</div>
+
+<style>
+#chatbot-widget {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 99999;
+  font-family: 'Poppins', sans-serif;
+}
+#chatbot-btn {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0f62fe, #393939);
+  color: white;
+  border: none;
+  box-shadow: 0 4px 20px rgba(15, 98, 254, 0.4);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s;
+}
+#chatbot-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 24px rgba(15, 98, 254, 0.6);
+}
+.chatbot-icon {
+  font-size: 28px;
+}
+.chatbot-pulse {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px solid #0f62fe;
+  animation: chatbot-pulsing 2s infinite;
+  opacity: 0;
+}
+@keyframes chatbot-pulsing {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+#chatbot-box {
+  position: absolute;
+  bottom: 76px;
+  right: 0;
+  width: 380px;
+  height: 520px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: opacity 0.3s, transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transform-origin: bottom right;
+}
+.chatbot-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.8) translateY(20px);
+}
+.chatbot-header {
+  background: linear-gradient(135deg, #0f62fe, #161616);
+  padding: 0.85rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.chatbot-avatar-header {
+  font-size: 20px;
+  background: rgba(255,255,255,0.2);
+  padding: 4px;
+  border-radius: 50%;
+}
+.chatbot-close {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 1.1rem;
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+.chatbot-close:hover {
+  opacity: 1;
+}
+.chatbot-messages {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: var(--bg-app);
+}
+.chatbot-msg {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  max-width: 85%;
+}
+.chatbot-msg-ai {
+  align-self: flex-start;
+}
+.chatbot-msg-user {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+  max-width: 85%;
+}
+.msg-avatar {
+  font-size: 18px;
+  background: rgba(0,0,0,0.05);
+  border-radius: 50%;
+  padding: 4px;
+}
+.chatbot-msg-user .msg-avatar {
+  background: rgba(15, 98, 254, 0.1);
+}
+.msg-bubble {
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+.chatbot-msg-ai .msg-bubble {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-top-left-radius: 2px;
+}
+.chatbot-msg-user .msg-bubble {
+  background: linear-gradient(135deg, #0f62fe, #0043ce);
+  color: white;
+  border-top-right-radius: 2px;
+}
+.chatbot-quick-tips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+.chatbot-quick-tips button {
+  background: rgba(15, 98, 254, 0.08);
+  border: 1px solid rgba(15, 98, 254, 0.2);
+  color: #0f62fe;
+  padding: 0.25rem 0.5rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.chatbot-quick-tips button:hover {
+  background: #0f62fe;
+  color: white;
+  transform: translateY(-1px);
+}
+.chatbot-footer {
+  padding: 0.75rem;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.chatbot-footer input {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  outline: none;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  transition: border-color 0.2s;
+}
+.chatbot-footer input:focus {
+  border-color: #0f62fe;
+}
+.chatbot-send-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #0f62fe;
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+.chatbot-send-btn:hover {
+  background: #0043ce;
+  transform: scale(1.05);
+}
+.chatbot-loading-dots {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+  height: 10px;
+}
+.chatbot-loading-dots span {
+  width: 5px;
+  height: 5px;
+  background: #a8a8a8;
+  border-radius: 50%;
+  animation: chatbot-loading-wave 1.2s infinite ease-in-out;
+}
+.chatbot-loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+.chatbot-loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes chatbot-loading-wave {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+</style>
+
+<script>
+function toggleChatbot() {
+  const box = document.getElementById('chatbot-box');
+  box.classList.toggle('chatbot-hidden');
+  if(!box.classList.contains('chatbot-hidden')) {
+    document.getElementById('chatbot-input').focus();
+    scrollChatbotBottom();
+  }
+}
+
+function scrollChatbotBottom() {
+  const container = document.getElementById('chatbot-messages-container');
+  container.scrollTop = container.scrollHeight;
+}
+
+function addChatbotMsg(texto, isAI = false, isLoading = false) {
+  const container = document.getElementById('chatbot-messages-container');
+  const msgDiv = document.createElement('div');
+  msgDiv.className = `chatbot-msg ${isAI ? 'chatbot-msg-ai' : 'chatbot-msg-user'}`;
+  
+  if (isLoading) {
+    msgDiv.id = 'chatbot-loading-bubble';
+  }
+
+  msgDiv.innerHTML = `
+    <span class="msg-avatar">${isAI ? '🤖' : '👤'}</span>
+    <div class="msg-bubble">
+      ${isLoading ? `
+        <div class="chatbot-loading-dots">
+          <span></span><span></span><span></span>
+        </div>` : formatChatbotMarkdown(texto)}
+    </div>
+  `;
+  container.appendChild(msgDiv);
+  scrollChatbotBottom();
+}
+
+function formatChatbotMarkdown(txt) {
+  // Conversão super simples de negritos (**texto**) e quebras de linha para HTML
+  return txt
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/`(.*?)`/g, '<code>$1</code>')
+    .replace(/\n/g, '<br>');
+}
+
+function enviarDuvidaRapida(msg) {
+  addChatbotMsg(msg, false);
+  enviarMensagemParaIA(msg);
+}
+
+async function enviarDuvidaChatbot() {
+  const inp = document.getElementById('chatbot-input');
+  const msg = inp.value.trim();
+  if(!msg) return;
+  
+  inp.value = '';
+  addChatbotMsg(msg, false);
+  
+  await enviarMensagemParaIA(msg);
+}
+
+async function enviarMensagemParaIA(msg) {
+  // Adiciona balão de carregando
+  addChatbotMsg('', true, true);
+  
+  try {
+    const res = await API.post('/chatbot', { mensagem: msg });
+    
+    // Remove balão de carregando
+    document.getElementById('chatbot-loading-bubble')?.remove();
+    
+    // Adiciona resposta real
+    addChatbotMsg(res.resposta, true);
+  } catch(e) {
+    // Remove balão de carregando
+    document.getElementById('chatbot-loading-bubble')?.remove();
+    
+    // Fallback inteligente local caso dê algum erro na rede
+    const localResp = getLocalFallbackChatbotReply(msg);
+    addChatbotMsg(localResp, true);
+  }
+}
+
+function getLocalFallbackChatbotReply(mensagem) {
+  const msg = mensagem.toLowerCase();
+  if (msg.includes('cadastrar') && msg.includes('produto')) {
+    return `Para cadastrar um produto:\n1. Clique no menu lateral **Produtos**.\n2. Clique em **+ Novo Produto**.\n3. Insira o nome, preço de venda, SKU, custo e estoque inicial.\n4. Clique em **Salvar**.`;
+  }
+  if (msg.includes('desconto') || msg.includes('senha')) {
+    return `No **PDV**, os descontos manuais solicitam a **senha do gerente/administrador** para validação do desconto! Isso garante o controle rígido das margens de lucro.`;
+  }
+  if (msg.includes('devol') || msg.includes('reembolso')) {
+    return `A **Logística Reversa** está em **CRM Inteligente** -> aba **Pós-Venda**. Defina o ID da Venda, o Produto e a Quantidade devolvida. O sistema estornará o estoque e creditará na **Carteira Digital** do cliente!`;
+  }
+  if (msg.includes('comis') || msg.includes('vendedor')) {
+    return `A comissão do vendedor é de 5% por padrão e pode ser personalizada na tela **Vendedores** clicando no ícone do lápis ✏️. O relatório geral fica na aba **Comissões**.`;
+  }
+  return `Olá! Entendi sua dúvida. O **VarejoOS** possui módulos integrados de:\n- **Frente de Caixa (PDV):** Vendas ágeis, cupons e descontos com senha.\n- **Produtos & Estoque:** Cadastros, variações e importações Excel.\n- **CRM Inteligente:** Oportunidades, SAC Tickets, devoluções e automações.\n- **Financeiro:** Contas a pagar/receber e DRE.\n\nExperimente perguntar sobre "cadastrar produto", "devolução" ou "comissão"!`;
+}
+</script>
 </body>
 </html>
+
