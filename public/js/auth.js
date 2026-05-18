@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
         errBox.classList.add('show');
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Masuk / Entrar';
+        btn.textContent = 'Entrar';
       }
     });
   }
