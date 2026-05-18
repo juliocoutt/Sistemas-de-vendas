@@ -61,11 +61,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Middleware de Isolamento Multi-tenant (Logical separation per store)
 app.use((req, res, next) => {
   const headerLoja = req.headers['x-loja-id'];
-  const queryLoja  = req.query.loja_id;
-  const bodyLoja   = req.body.loja_id;
+  const queryLoja  = req.query ? req.query.loja_id : undefined;
+  const bodyLoja   = req.body ? req.body.loja_id : undefined;
 
   const resolvedLoja = headerLoja || queryLoja || bodyLoja;
-  if (resolvedLoja) {
+  if (resolvedLoja && resolvedLoja !== 'null' && resolvedLoja !== 'undefined' && resolvedLoja !== '') {
     req.loja_id = Number(resolvedLoja);
   }
   next();
