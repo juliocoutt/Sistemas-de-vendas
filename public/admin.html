@@ -71,15 +71,24 @@
       </a>
     </nav>
     <div class="sidebar-footer">
-      <span id="sidebarUser"></span><br>
-      <a href="#" onclick="API.logout()">Sair</a>
+      <div id="sidebarUserBox" style="display:flex; align-items:center; gap:0.5rem; margin-bottom: 0.8rem; cursor:pointer; padding:0.5rem; border-radius:4px; transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='transparent'" onclick="showPage('perfil')">
+        <img id="sidebarAvatar" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjY2NjIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iMTIiIGN5PSI4IiByPSI1Ii8+PHBhdGggZD0iTTIwIDIxYy0xLjI1LTQuNS00LjI1LTgtOC04cy02Ljc1IDMuNS04IDgiLz48L3N2Zz4=" style="width:32px; height:32px; border-radius:50%; object-fit:cover; background:#f0f0f0;">
+        <div style="flex:1; overflow:hidden;">
+          <span id="sidebarUser" style="display:block; text-overflow:ellipsis; white-space:nowrap; font-weight:600; font-size:0.9rem;"></span>
+          <span style="display:block; font-size:0.75rem; color:var(--text-muted);">Meu Perfil</span>
+        </div>
+      </div>
+      <button class="btn btn-danger" style="width:100%; font-weight:bold; font-size:0.9rem; padding:0.6rem;" onclick="API.logout()">Sair do Sistema</button>
     </div>
   </aside>
 
   <!-- ── Main ── -->
   <div class="main-content">
     <div class="topbar">
-      <span class="topbar-title" id="topbarTitle">Dashboard</span>
+      <div style="display:flex; align-items:center; gap:1rem;">
+        <button id="menuToggle" class="btn btn-secondary btn-sm" style="padding:0.4rem 0.6rem; font-size:1.2rem; background:transparent; border:none; color:var(--text-primary); cursor:pointer;">☰</button>
+        <span class="topbar-title" id="topbarTitle">Dashboard</span>
+      </div>
       <div class="topbar-actions" id="topbarActions"></div>
     </div>
 
@@ -107,12 +116,48 @@
 if (!API.checkAuth()) { /* checkAuth redireciona */ }
 const user = API.getUsuario();
 if (user) {
-  document.getElementById('sidebarUser').textContent = `👤 ${user.nome}`;
+  document.getElementById('sidebarUser').textContent = user.nome;
+  if (user.foto) {
+    document.getElementById('sidebarAvatar').src = user.foto;
+  }
   if (user.role === 'admin' || user.role === 'superadmin') {
     const navConf = document.getElementById('nav-configuracoes');
     if (navConf) navConf.style.display = 'flex';
+  } else {
+    // Aplicar permissões do vendedor (ocultar menus sem acesso de leitura)
+    let perms = {};
+    try { perms = typeof user.permissoes === 'string' ? JSON.parse(user.permissoes) : user.permissoes || {}; } catch(e){}
+    const modulos = ['dashboard', 'financeiro', 'pdv', 'vendas', 'produtos', 'estoque', 'clientes', 'entregas'];
+    modulos.forEach(m => {
+      if (!perms[m] || !perms[m].ler) {
+        const navEl = document.getElementById(`nav-${m}`);
+        if (navEl) navEl.style.display = 'none';
+      }
+    });
   }
 }
+
+const menuToggle = document.getElementById('menuToggle');
+const sidebar = document.querySelector('.sidebar');
+const mainContent = document.querySelector('.main-content');
+if (menuToggle) {
+  menuToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (window.innerWidth <= 768) {
+      sidebar.classList.toggle('mobile-open');
+    } else {
+      sidebar.classList.toggle('collapsed');
+      mainContent.classList.toggle('expanded');
+    }
+  });
+}
+document.addEventListener('click', (e) => {
+  if (window.innerWidth <= 768 && sidebar.classList.contains('mobile-open')) {
+    if (!sidebar.contains(e.target) && e.target !== menuToggle) {
+      sidebar.classList.remove('mobile-open');
+    }
+  }
+});
 
 // Carregar Configurações Dinâmicas (Logo)
 API.get('/configuracoes').then(config => {
@@ -134,12 +179,12 @@ function showPage(name) {
   pages.forEach(p => document.getElementById(`nav-${p}`)?.classList.remove('active'));
   document.getElementById(`nav-${name}`)?.classList.add('active');
   document.getElementById('topbarActions').innerHTML = '';
-  const map = { dashboard:'Dashboard', financeiro:'Fluxo de Caixa', vendas:'Vendas', produtos:'Produtos', kits:'Kits e Combos', estoque:'Estoque', clientes:'Clientes', lojas:'Lojas', vendedores:'Vendedores', comissoes:'Comissões', campanhas:'Campanhas Promocionais', entregadores:'Entregadores', entregas:'Painel de Entregas', mensageria:'CRM / Mensageria', configuracoes:'Configurações do Sistema' };
+  const map = { dashboard:'Dashboard', financeiro:'Fluxo de Caixa', vendas:'Vendas', produtos:'Produtos', kits:'Kits e Combos', estoque:'Estoque', clientes:'Clientes', lojas:'Lojas', vendedores:'Vendedores', comissoes:'Comissões', campanhas:'Campanhas Promocionais', entregadores:'Entregadores', entregas:'Painel de Entregas', mensageria:'CRM / Mensageria', configuracoes:'Configurações do Sistema', perfil:'Meu Perfil' };
   document.getElementById('topbarTitle').textContent = map[name] || name;
   const pc = document.getElementById('pageContent');
   pc.style.opacity = '0';
   setTimeout(() => { pc.style.transition = 'opacity .3s'; pc.style.opacity = '1'; }, 10);
-  ({ dashboard: renderDashboard, financeiro: renderFinanceiro, vendas: renderVendas, produtos: renderProdutos, kits: renderKits, estoque: renderEstoque, clientes: renderClientes, lojas: renderLojas, vendedores: renderVendedores, comissoes: renderComissoes, campanhas: renderCampanhas, entregadores: renderEntregadores, entregas: renderEntregas, mensageria: renderMensageria, configuracoes: renderConfiguracoes })[name]?.();
+  ({ dashboard: renderDashboard, financeiro: renderFinanceiro, vendas: renderVendas, produtos: renderProdutos, kits: renderKits, estoque: renderEstoque, clientes: renderClientes, lojas: renderLojas, vendedores: renderVendedores, comissoes: renderComissoes, campanhas: renderCampanhas, entregadores: renderEntregadores, entregas: renderEntregas, mensageria: renderMensageria, configuracoes: renderConfiguracoes, perfil: renderPerfil })[name]?.();
 }
 showPage('dashboard');
 
@@ -635,10 +680,32 @@ async function renderVendedores() {
 
 function abrirModalVendedor() {
   document.getElementById('modalTitulo').textContent = 'Novo Vendedor';
+  const modulos = ['dashboard','financeiro','pdv','vendas','produtos','estoque','clientes','entregas'];
+  
+  const permHtml = modulos.map(m => `
+    <tr>
+      <td style="text-transform:capitalize;">${m}</td>
+      <td style="text-align:center;"><input type="checkbox" id="perm_${m}_ler" checked></td>
+      <td style="text-align:center;"><input type="checkbox" id="perm_${m}_escrever"></td>
+      <td style="text-align:center;"><input type="checkbox" id="perm_${m}_excluir"></td>
+    </tr>
+  `).join('');
+
   document.getElementById('modalCorpo').innerHTML = `
     <div class="input-group"><label>Nome *</label><input id="vNome" placeholder="Nome do vendedor"></div>
-    <div class="input-group"><label>E-mail *</label><input id="vEmail" type="email" placeholder="vendedor@loja.com"></div>
-    <div class="input-group"><label>Senha *</label><input id="vSenha" type="password" placeholder="******"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+      <div class="input-group"><label>E-mail *</label><input id="vEmail" type="email" placeholder="vendedor@loja.com"></div>
+      <div class="input-group"><label>Senha *</label><input id="vSenha" type="password" placeholder="******"></div>
+    </div>
+    <h4 style="margin-top:1rem;margin-bottom:0.5rem;">Permissões de Acesso</h4>
+    <div class="table-wrapper" style="max-height:250px; overflow-y:auto;">
+      <table style="font-size:0.8rem;">
+        <thead style="position:sticky;top:0;background:var(--bg-surface);">
+          <tr><th>Módulo</th><th style="text-align:center;">Acessar</th><th style="text-align:center;">Cadastrar/Editar</th><th style="text-align:center;">Excluir</th></tr>
+        </thead>
+        <tbody>${permHtml}</tbody>
+      </table>
+    </div>
   `;
   document.getElementById('modalRodape').innerHTML = `
     <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
@@ -652,8 +719,19 @@ async function salvarVendedor() {
   const email = document.getElementById('vEmail').value.trim();
   const senha = document.getElementById('vSenha').value.trim();
   if (!nome || !email || !senha) { showToast('Preencha todos os campos.', 'error'); return; }
+  
+  const modulos = ['dashboard','financeiro','pdv','vendas','produtos','estoque','clientes','entregas'];
+  const permissoes = {};
+  modulos.forEach(m => {
+    permissoes[m] = {
+      ler: document.getElementById(`perm_${m}_ler`).checked,
+      escrever: document.getElementById(`perm_${m}_escrever`).checked,
+      excluir: document.getElementById(`perm_${m}_excluir`).checked
+    };
+  });
+
   try {
-    await API.post('/vendedores', { nome, email, senha, loja_id: user.loja_id });
+    await API.post('/vendedores', { nome, email, senha, loja_id: user.loja_id, permissoes });
     showToast('Vendedor cadastrado!', 'success');
     fecharModal(); renderVendedores();
   } catch (e) { showToast(e.message, 'error'); }
@@ -1302,6 +1380,82 @@ async function salvarConfiguracoes() {
     btn.disabled = false;
     btn.textContent = '💾 Salvar Configurações';
   }
+/* ── Meu Perfil ── */
+async function renderPerfil() {
+  const pc = document.getElementById('pageContent');
+  pc.innerHTML = `<div class="empty-state"><span class="spinner" style="width:32px;height:32px;border-width:3px;"></span></div>`;
+  const currentUser = API.getUsuario();
+  try {
+    const p = await API.get(`/usuarios/perfil/${currentUser.id}`);
+    pc.innerHTML = `
+      <div class="card" style="max-width:600px; margin:0 auto; animation: fadeInUp 0.4s ease;">
+        <div class="card-header"><h3>👤 Meu Perfil</h3></div>
+        <div class="card-body" style="display:flex; flex-direction:column; gap:1.25rem;">
+          <div style="text-align:center;">
+            <img id="perfilAvatarPreview" src="${p.foto || 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjY2NjIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iMTIiIGN5PSI4IiByPSI1Ii8+PHBhdGggZD0iTTIwIDIxYy0xLjI1LTQuNS00LjI1LTgtOC04cy02Ljc1IDMuNS04IDgiLz48L3N2Zz4='}" style="width:120px; height:120px; border-radius:50%; object-fit:cover; background:#f0f0f0; margin-bottom:1rem; border:4px solid var(--border);">
+            <div>
+              <input type="file" id="perfilFoto" accept="image/*" style="display:none;" onchange="handlePerfilFoto(event)">
+              <button class="btn btn-secondary btn-sm" onclick="document.getElementById('perfilFoto').click()">📷 Alterar Foto</button>
+            </div>
+            <input type="hidden" id="perfilFotoBase64" value="${p.foto || ''}">
+          </div>
+          
+          <div class="input-group">
+            <label>Nome (Apenas leitura)</label>
+            <input type="text" value="${p.nome}" disabled style="background:#f4f4f4;">
+          </div>
+          <div class="input-group">
+            <label>E-mail (Apenas leitura)</label>
+            <input type="text" value="${p.email}" disabled style="background:#f4f4f4;">
+          </div>
+          <div class="input-group">
+            <label>Telefone</label>
+            <input type="text" id="perfilTelefone" value="${p.telefone || ''}" placeholder="(00) 00000-0000">
+          </div>
+          <div class="input-group">
+            <label>Nova Senha (Deixe em branco para manter)</label>
+            <input type="password" id="perfilSenha" placeholder="Digite a nova senha se desejar mudar...">
+          </div>
+          <button class="btn btn-primary" onclick="salvarPerfil()" id="btnSalvarPerfil" style="width:100%; padding:0.85rem; font-weight:600; margin-top:1rem;">💾 Salvar Perfil</button>
+        </div>
+      </div>
+    `;
+  } catch(e) { pc.innerHTML = '<div class="empty-state"><p>Erro ao carregar perfil.</p></div>'; }
+}
+
+function handlePerfilFoto(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) return showToast('A imagem é muito grande. Escolha uma de até 2MB.', 'error');
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('perfilFotoBase64').value = e.target.result;
+    document.getElementById('perfilAvatarPreview').src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function salvarPerfil() {
+  const btn = document.getElementById('btnSalvarPerfil');
+  const user = API.getUsuario();
+  const senha = document.getElementById('perfilSenha').value.trim();
+  const foto = document.getElementById('perfilFotoBase64').value;
+  const telefone = document.getElementById('perfilTelefone').value.trim();
+
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+
+  try {
+    await API.request('PUT', '/usuarios/perfil', { id: user.id, senha: senha || undefined, foto: foto || undefined, telefone: telefone || undefined });
+    showToast('Perfil salvo com sucesso!', 'success');
+    if (foto) {
+      document.getElementById('sidebarAvatar').src = foto;
+      user.foto = foto;
+      sessionStorage.setItem('usuario', JSON.stringify(user));
+    }
+  } catch(e) { showToast(e.message, 'error'); }
+  btn.disabled = false;
+  btn.textContent = '💾 Salvar Perfil';
 }
 </script>
 </body>

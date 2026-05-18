@@ -155,6 +155,10 @@ tbody td { padding: 1rem; color: var(--text-primary); }
   display: flex; flex-direction: column;
   position: fixed; height: 100vh; overflow-y: auto;
   z-index: 100;
+  transition: transform 0.3s cubic-bezier(.4,0,.2,1);
+}
+.sidebar.collapsed {
+  transform: translateX(-100%);
 }
 .sidebar-logo {
   padding: 2rem 1.5rem;
@@ -193,6 +197,18 @@ tbody td { padding: 1rem; color: var(--text-primary); }
   margin-left: 260px; flex: 1;
   display: flex; flex-direction: column;
   min-height: 100vh;
+  transition: margin-left 0.3s cubic-bezier(.4,0,.2,1);
+}
+.main-content.expanded {
+  margin-left: 0;
+}
+
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); }
+  .sidebar.mobile-open { transform: translateX(0); box-shadow: var(--shadow-lg); }
+  .main-content { margin-left: 0; }
+  .main-content.expanded { margin-left: 0; }
+  #menuToggle { display: block !important; }
 }
 
 .topbar {
@@ -212,6 +228,7 @@ tbody td { padding: 1rem; color: var(--text-primary); }
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  justify-content: center;
   gap: 1.5rem; margin-bottom: 2.5rem;
 }
 .kpi-card {

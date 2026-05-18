@@ -24,7 +24,40 @@ app.post('/api/login', async (req, res) => {
     const { email, senha } = req.body;
     const user = await asyncGet('SELECT * FROM usuarios WHERE email = $1 AND senha_hash = $2', [email, senha]);
     if (!user) return res.status(401).json({ error: 'E-mail ou senha inválidos.' });
-    res.json({ id: user.id, nome: user.nome, email: user.email, role: user.role, loja_id: user.loja_id });
+    res.json({ id: user.id, nome: user.nome, email: user.email, role: user.role, loja_id: user.loja_id, permissoes: user.permissoes, foto: user.foto, telefone: user.telefone });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Perfil do Usuário ──
+app.get('/api/usuarios/perfil/:id', async (req, res) => {
+  try {
+    const user = await asyncGet('SELECT id, nome, email, role, foto, telefone, permissoes FROM usuarios WHERE id = $1', [req.params.id]);
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' });
+    res.json(user);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/usuarios/perfil', async (req, res) => {
+  try {
+    const { id, senha, foto, telefone } = req.body;
+    if (!id) return res.status(400).json({ error: 'ID do usuário obrigatório.' });
+    
+    let sql = 'UPDATE usuarios SET ';
+    const params = [];
+    let i = 1;
+    const sets = [];
+    
+    if (senha) { sets.push(`senha_hash = $${i++}`); params.push(senha); }
+    if (foto !== undefined) { sets.push(`foto = $${i++}`); params.push(foto); }
+    if (telefone !== undefined) { sets.push(`telefone = $${i++}`); params.push(telefone); }
+    
+    if (sets.length === 0) return res.json({ ok: true });
+    
+    sql += sets.join(', ') + ` WHERE id = $${i}`;
+    params.push(id);
+    
+    await asyncRun(sql, params);
+    res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -67,21 +100,37 @@ app.get('/api/produtos/:id', async (req, res) => {
 
 app.post('/api/produtos', async (req, res) => {
   try {
-    const { sku, nome, descricao, categoria, preco_venda, custo, estoque_atual = 0 } = req.body;
+    const { sku, nome, descricao, categoria, preco_venda, custo, estoque_atual = 0, imagem, variacoes } = req.body;
     const r = await asyncRun(
-      'INSERT INTO produtos (sku, nome, descricao, categoria, preco_venda, custo, estoque_atual, ativo) VALUES ($1,$2,$3,$4,$5,$6,$7,1) RETURNING id',
-      [sku, nome, descricao, categoria, preco_venda, custo, estoque_atual]);
+      'INSERT INTO produtos (sku, nome, descricao, categoria, preco_venda, custo, estoque_atual, ativo, imagem, variacoes) VALUES ($1,$2,$3,$4,$5,$6,$7,1,$8,$9) RETURNING id',
+      [sku, nome, descricao, categoria, preco_venda, custo, estoque_atual, imagem || null, variacoes ? JSON.stringify(variacoes) : '[]']);
     res.status(201).json({ id: r.id, sku, nome });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/produtos/:id', async (req, res) => {
   try {
-    const { nome, descricao, categoria, preco_venda, custo, ativo } = req.body;
+    const { nome, descricao, categoria, preco_venda, custo, ativo, imagem, variacoes } = req.body;
     await asyncRun(
-      'UPDATE produtos SET nome=$1, descricao=$2, categoria=$3, preco_venda=$4, custo=$5, ativo=$6 WHERE id=$7',
-      [nome, descricao, categoria, preco_venda, custo, ativo, req.params.id]);
+      'UPDATE produtos SET nome=$1, descricao=$2, categoria=$3, preco_venda=$4, custo=$5, ativo=$6, imagem=$7, variacoes=$8 WHERE id=$9',
+      [nome, descricao, categoria, preco_venda, custo, ativo, imagem || null, variacoes ? JSON.stringify(variacoes) : '[]', req.params.id]);
     res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/produtos/bulk', async (req, res) => {
+  try {
+    const produtos = req.body;
+    if (!Array.isArray(produtos)) return res.status(400).json({ error: 'Array esperado' });
+    let count = 0;
+    for (const p of produtos) {
+      await asyncRun(
+        'INSERT INTO produtos (sku, nome, descricao, categoria, preco_venda, custo, estoque_atual, ativo, imagem, variacoes) VALUES ($1,$2,$3,$4,$5,$6,$7,1,$8,$9)',
+        [p.sku || '', p.nome, p.descricao || '', p.categoria || 'Geral', p.preco_venda || 0, p.custo || 0, p.estoque_atual || 0, p.imagem || null, p.variacoes ? JSON.stringify(p.variacoes) : '[]']
+      );
+      count++;
+    }
+    res.json({ ok: true, inseridos: count });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -265,6 +314,22 @@ app.post('/api/clientes', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+app.post('/api/clientes/bulk', async (req, res) => {
+  try {
+    const clientes = req.body;
+    if (!Array.isArray(clientes)) return res.status(400).json({ error: 'Array esperado' });
+    let count = 0;
+    for (const c of clientes) {
+      await asyncRun(
+        'INSERT INTO clientes (nome, cpf_cnpj, email, telefone, pontos) VALUES ($1,$2,$3,$4,0)',
+        [c.nome, c.cpf_cnpj || '', c.email || '', c.telefone || '']
+      );
+      count++;
+    }
+    res.json({ ok: true, inseridos: count });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Kits ──
 app.get('/api/kits', async (req, res) => {
   try {
@@ -342,10 +407,19 @@ app.get('/api/vendedores', async (req, res) => {
 
 app.post('/api/vendedores', async (req, res) => {
   try {
-    const { nome, email, senha, loja_id } = req.body;
-    const r = await asyncRun('INSERT INTO usuarios (nome, email, senha_hash, role, loja_id) VALUES ($1,$2,$3,$4,$5) RETURNING id',
-      [nome, email, senha, 'vendedor', loja_id || 1]);
+    const { nome, email, senha, loja_id, permissoes } = req.body;
+    const r = await asyncRun('INSERT INTO usuarios (nome, email, senha_hash, role, loja_id, permissoes) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
+      [nome, email, senha, 'vendedor', loja_id || 1, permissoes ? JSON.stringify(permissoes) : '{}']);
     res.status(201).json({ id: r.id, nome });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/vendedores/:id', async (req, res) => {
+  try {
+    const { nome, email, permissoes } = req.body;
+    await asyncRun('UPDATE usuarios SET nome=$1, email=$2, permissoes=$3 WHERE id=$4', 
+      [nome, email, permissoes ? JSON.stringify(permissoes) : '{}', req.params.id]);
+    res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
