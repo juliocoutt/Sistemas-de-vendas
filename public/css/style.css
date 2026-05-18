@@ -347,7 +347,7 @@ tbody td { padding: 1rem; color: var(--text-primary); }
 }
 .login-left {
   flex: 1;
-  background-image: url('../login-bg.png'); /* Usa a imagem gerada */
+  background-image: url('../login-bg.jpg'); /* Usa a imagem gerada */
   background-size: cover;
   background-position: center;
   position: relative;
