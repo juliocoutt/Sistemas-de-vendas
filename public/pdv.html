@@ -19,7 +19,7 @@
     }
     .pdv-container {
       display: grid;
-      grid-template-columns: 1fr 400px 70px;
+      grid-template-columns: 1fr 350px 480px;
       grid-template-rows: 60px 1fr;
       height: 100vh;
       overflow: hidden;
@@ -363,69 +363,16 @@
       align-items: center;
     }
     
-    /* ── Far-Right Vertical Strip ── */
-    .pdv-vertical-strip {
+    /* ── Product Catalog (Coluna Direita) ── */
+    .pdv-catalog {
       grid-column: 3 / 4;
       grid-row: 2 / 3;
-      background: #0b2b26; /* Deep forest green */
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 1.5rem 0;
-      gap: 1.5rem;
-      z-index: 50;
-    }
-    .strip-button {
-      background: transparent;
-      border: none;
-      color: rgba(255,255,255,0.6);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.35rem;
-      cursor: pointer;
-      width: 100%;
-      padding: 0.5rem 0;
-      transition: all 0.2s;
-      border-right: 3px solid transparent;
-    }
-    .strip-button:hover,
-    .strip-button.active {
-      color: #ffffff;
-    }
-    .strip-button.active {
-      border-right-color: var(--sidebar-active);
-    }
-    .strip-button svg {
-      width: 20px;
-      height: 20px;
-      stroke-width: 2px;
-    }
-    .strip-button span {
-      font-size: 0.6rem;
-      font-weight: 600;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-    }
-    
-    /* ── Sliding Products Drawer ── */
-    .products-drawer {
-      position: fixed;
-      top: 60px;
-      right: 70px;
-      width: 480px;
-      height: calc(100vh - 60px);
       background: var(--bg-surface);
-      box-shadow: -8px 0 24px rgba(0,0,0,0.1);
-      z-index: 500;
-      transform: translateX(100%);
-      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       display: flex;
       flex-direction: column;
       border-left: 1px solid var(--border);
-    }
-    .products-drawer.open {
-      transform: translateX(0);
+      overflow: hidden;
+      z-index: 10;
     }
     .drawer-header {
       padding: 1rem 1.5rem;
@@ -477,6 +424,7 @@
         <select id="pdvVendedorSelect" style="padding:0.35rem 0.5rem; font-size:0.8rem; border-radius:var(--radius-sm); border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.1); color:#ffffff; min-width:140px; outline:none; cursor:pointer;"></select>
       </div>
       <span id="pdvVendedor" class="badge badge-blue" style="display:none;"></span>
+      <button class="btn btn-danger btn-sm" onclick="limparCarrinho()" style="display:flex; align-items:center; gap:0.25rem; padding:0.35rem 0.75rem; background:rgba(255,50,50,0.15); border:1px solid rgba(255,50,50,0.3); color:#ffdddd;"><i data-lucide="trash-2" style="width:14px; height:14px;"></i> Limpar</button>
       <button class="btn btn-secondary btn-sm" onclick="location.href='admin.html'" style="display:flex; align-items:center; gap:0.25rem; padding:0.35rem 0.75rem;"><i data-lucide="arrow-left" style="width:14px; height:14px;"></i> Voltar Admin</button>
       <button class="btn btn-ghost btn-sm" onclick="API.logout()" style="color:#ffffff;">Sair</button>
     </div>
@@ -636,46 +584,25 @@
     </button>
   </section>
 
-  <!-- ── Coluna Direita: Strip Vertical de Atalhos (igual ao print) ── -->
-  <aside class="pdv-vertical-strip">
-    <button class="strip-button active" onclick="changeSidebarMode('home', this)" title="Home / Ledger">
-      <i data-lucide="layout-grid"></i>
-      <span>Geral</span>
-    </button>
-    <button class="strip-button" id="btnStripProducts" onclick="toggleProductsDrawer()" title="Catálogo de Produtos">
-      <i data-lucide="package"></i>
-      <span>Produtos</span>
-    </button>
-    <button class="strip-button" onclick="limparCarrinho()" title="Limpar Carrinho / Venda">
-      <i data-lucide="trash-2"></i>
-      <span>Limpar</span>
-    </button>
-    <button class="strip-button" onclick="location.href='admin.html'" title="Voltar ao Painel Administrativo" style="margin-top:auto;">
-      <i data-lucide="settings"></i>
-      <span>Config</span>
-    </button>
-  </aside>
-
-</div>
-
-<!-- Sliding Products Drawer overlaying actions -->
-<div class="products-drawer" id="productsDrawer">
-  <div class="drawer-header">
-    <h3>📦 Catálogo de Produtos</h3>
-    <button class="modal-close" onclick="toggleProductsDrawer()">✕</button>
-  </div>
-  <div class="drawer-body">
-    <!-- Category Chips (Dinâmicos) -->
-    <div class="filter-bar" id="filterCats"></div>
-    
-    <!-- Grid de Produtos e Kits -->
-    <div class="products-grid" id="productsGrid">
-      <div class="empty-state" style="padding:2rem 0;">
-        <div class="es-icon">⏳</div>
-        <p>Carregando catálogo...</p>
+  <!-- ── Coluna Direita: Catálogo de Produtos Fixo ── -->
+  <aside class="pdv-catalog" id="productsDrawer">
+    <div class="drawer-header" style="background:var(--bg-card);">
+      <h3>📦 Catálogo de Produtos</h3>
+    </div>
+    <div class="drawer-body">
+      <!-- Category Chips (Dinâmicos) -->
+      <div class="filter-bar" id="filterCats"></div>
+      
+      <!-- Grid de Produtos e Kits -->
+      <div class="products-grid" id="productsGrid">
+        <div class="empty-state" style="padding:2rem 0;">
+          <div class="es-icon">⏳</div>
+          <p>Carregando catálogo...</p>
+        </div>
       </div>
     </div>
-  </div>
+  </aside>
+
 </div>
 
 <!-- Modal Abertura de Caixa -->
