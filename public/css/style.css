@@ -485,7 +485,9 @@ tbody td { padding: 1rem 1.25rem; color: var(--text-primary); }
   line-height: 1;
 }
 .brand-logo img {
-  max-height: 70px;
+  max-height: 140px;
+  width: 100%;
+  object-fit: contain;
   display: block;
   margin: 0 auto;
 }

@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const logoText = document.getElementById('logoText');
         if (logoText) {
           if (config.logo_sistema.startsWith('data:image') || config.logo_sistema.startsWith('http') || config.logo_sistema.startsWith('/')) {
-            logoText.innerHTML = `<img src="${config.logo_sistema}" alt="Logo" style="max-height: 70px; max-width: 100%; display: block; margin: 0 auto;">`;
+            logoText.innerHTML = `<img src="${config.logo_sistema}" alt="Logo" style="max-height: 140px; width: 100%; object-fit: contain; display: block; margin: 0 auto;">`;
           } else {
             logoText.textContent = config.logo_sistema;
           }
