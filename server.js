@@ -399,27 +399,51 @@ app.post('/api/mensageria/disparo', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ── Vendedores / Comissões ──
+// Retorna vendedores com taxa de comissão individual
 app.get('/api/vendedores', async (req, res) => {
-  try { res.json(await asyncAll("SELECT id, nome, email FROM usuarios WHERE role IN ('vendedor', 'superadmin', 'gestor') ORDER BY nome")); }
+  try { res.json(await asyncAll("SELECT id, nome, email, taxa_comissao FROM usuarios WHERE role IN ('vendedor', 'superadmin', 'gestor') ORDER BY nome")); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Cria novo vendedor com permissões e taxa de comissão
 app.post('/api/vendedores', async (req, res) => {
   try {
-    const { nome, email, senha, loja_id, permissoes } = req.body;
-    const r = await asyncRun('INSERT INTO usuarios (nome, email, senha_hash, role, loja_id, permissoes) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
-      [nome, email, senha, 'vendedor', loja_id || 1, permissoes ? JSON.stringify(permissoes) : '{}']);
+    const { nome, email, senha, loja_id, permissoes, taxa_comissao } = req.body;
+    const r = await asyncRun(
+      'INSERT INTO usuarios (nome, email, senha_hash, role, loja_id, permissoes, taxa_comissao) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id',
+      [nome, email, senha, 'vendedor', loja_id || 1, permissoes ? JSON.stringify(permissoes) : '{}', taxa_comissao ?? 5.00]);
     res.status(201).json({ id: r.id, nome });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Atualiza dados, permissões e taxa de comissão do vendedor
 app.put('/api/vendedores/:id', async (req, res) => {
   try {
-    const { nome, email, permissoes } = req.body;
-    await asyncRun('UPDATE usuarios SET nome=$1, email=$2, permissoes=$3 WHERE id=$4', 
-      [nome, email, permissoes ? JSON.stringify(permissoes) : '{}', req.params.id]);
+    const { nome, email, permissoes, taxa_comissao } = req.body;
+    await asyncRun('UPDATE usuarios SET nome=$1, email=$2, permissoes=$3, taxa_comissao=$4 WHERE id=$5',
+      [nome, email, permissoes ? JSON.stringify(permissoes) : '{}', taxa_comissao ?? 5.00, req.params.id]);
     res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Importação em massa de estoque via planilha (SKU + nova quantidade ou ajuste)
+app.post('/api/estoque/bulk', async (req, res) => {
+  try {
+    const itens = req.body; // Array de { sku, quantidade_nova, usuario_id, observacao }
+    if (!Array.isArray(itens)) return res.status(400).json({ error: 'Array esperado' });
+    let atualizados = 0;
+    for (const item of itens) {
+      const p = await asyncGet('SELECT id, estoque_atual FROM produtos WHERE sku = $1', [item.sku]);
+      if (!p) continue; // SKU não encontrado: pula
+      const diff = item.quantidade_nova - p.estoque_atual;
+      await asyncRun('UPDATE produtos SET estoque_atual = $1 WHERE id = $2', [item.quantidade_nova, p.id]);
+      await asyncRun(
+        'INSERT INTO estoque_mov (produto_id, tipo, quantidade, data, usuario_id, observacao) VALUES ($1,$2,$3,$4,$5,$6)',
+        [p.id, 'ajuste', diff, new Date().toISOString(), item.usuario_id || null, item.observacao || 'Importação via planilha']
+      );
+      atualizados++;
+    }
+    res.json({ ok: true, atualizados });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

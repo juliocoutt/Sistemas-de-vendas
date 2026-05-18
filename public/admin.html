@@ -331,7 +331,9 @@ async function imprimirRecibo(vendaId) {
    PRODUTOS
 ════════════════════════════════════════ */
 async function renderProdutos() {
+  // Barra de ações: baixar modelo, importar e novo produto
   document.getElementById('topbarActions').innerHTML = `
+    <button class="btn btn-ghost btn-sm" onclick="baixarModeloProdutos()" title="Baixar planilha modelo para preenchimento">📝 Baixar Modelo</button>
     <input type="file" id="prodExcelFile" accept=".xlsx, .xls" style="display:none;" onchange="importarProdutosExcel(event)">
     <button class="btn btn-secondary btn-sm" onclick="document.getElementById('prodExcelFile').click()">📥 Importar Planilha</button>
     <button class="btn btn-primary btn-sm" onclick="abrirModalProduto()">+ Novo Produto</button>
@@ -474,7 +476,11 @@ async function salvarProduto(id) {
    ESTOQUE
 ════════════════════════════════════════ */
 async function renderEstoque() {
+  // Barra de ações de estoque: entrada, ajuste e importação via planilha
   document.getElementById('topbarActions').innerHTML = `
+    <button class="btn btn-ghost btn-sm" onclick="baixarModeloEstoque()" title="Baixar modelo para atualizar estoque em massa">📝 Baixar Modelo</button>
+    <input type="file" id="estoqueExcelFile" accept=".xlsx, .xls" style="display:none;" onchange="importarEstoqueExcel(event)">
+    <button class="btn btn-secondary btn-sm" onclick="document.getElementById('estoqueExcelFile').click()">📥 Importar Estoque</button>
     <button class="btn btn-secondary btn-sm" onclick="abrirModalMovimento('entrada')">📥 Entrada</button>
     <button class="btn btn-secondary btn-sm" onclick="abrirModalMovimento('ajuste')">🔧 Ajuste</button>
   `;
@@ -545,7 +551,9 @@ async function salvarMovimento(tipo) {
    CLIENTES
 ════════════════════════════════════════ */
 async function renderClientes() {
+  // Barra de ações: baixar modelo, importar e novo cliente
   document.getElementById('topbarActions').innerHTML = `
+    <button class="btn btn-ghost btn-sm" onclick="baixarModeloClientes()" title="Baixar planilha modelo para clientes">📝 Baixar Modelo</button>
     <input type="file" id="clientExcelFile" accept=".xlsx, .xls" style="display:none;" onchange="importarClientesExcel(event)">
     <button class="btn btn-secondary btn-sm" onclick="document.getElementById('clientExcelFile').click()">📥 Importar Planilha</button>
     <button class="btn btn-primary btn-sm" onclick="abrirModalCliente()">+ Novo Cliente</button>
