@@ -4,11 +4,13 @@ const API = {
 
   async request(method, path, data) {
     const u = this.getUsuario();
+    const activeLojaId = window.currentMasterLojaId || (u ? u.loja_id : null);
     const opts = {
       method,
       headers: { 
         'Content-Type': 'application/json',
-        ...(u ? { 'X-User-Role': u.role } : {})
+        ...(u ? { 'X-User-Role': u.role } : {}),
+        ...(activeLojaId ? { 'X-Loja-ID': String(activeLojaId) } : {})
       },
     };
     if (data) opts.body = JSON.stringify(data);
@@ -20,20 +22,32 @@ const API = {
 
   get(path) {
     let finalPath = path;
-    if (window.currentMasterLojaId && !path.includes('/lojas') && !path.includes('/master') && !path.includes('/configuracoes')) {
+    const u = this.getUsuario();
+    const activeLojaId = window.currentMasterLojaId || (u ? u.loja_id : null);
+    if (activeLojaId && !path.includes('/lojas') && !path.includes('/master') && !path.includes('/configuracoes')) {
       const sep = path.includes('?') ? '&' : '?';
-      finalPath = `${path}${sep}loja_id=${window.currentMasterLojaId}`;
+      finalPath = `${path}${sep}loja_id=${activeLojaId}`;
     }
     return API.request('GET', finalPath);
   },
   post(path, data) {
     let finalData = data;
-    if (window.currentMasterLojaId && data && typeof data === 'object' && !data.loja_id && !path.includes('/master')) {
-      finalData = { ...data, loja_id: Number(window.currentMasterLojaId) };
+    const u = this.getUsuario();
+    const activeLojaId = window.currentMasterLojaId || (u ? u.loja_id : null);
+    if (activeLojaId && data && typeof data === 'object' && !data.loja_id && !path.includes('/master') && !path.includes('/auth')) {
+      finalData = { ...data, loja_id: Number(activeLojaId) };
     }
     return API.request('POST', path, finalData);
   },
-  put:    (path, data) => API.request('PUT',    path, data),
+  put:    (path, data) => {
+    let finalData = data;
+    const u = this.getUsuario();
+    const activeLojaId = window.currentMasterLojaId || (u ? u.loja_id : null);
+    if (activeLojaId && data && typeof data === 'object' && !data.loja_id && !path.includes('/master') && !path.includes('/auth')) {
+      finalData = { ...data, loja_id: Number(activeLojaId) };
+    }
+    return API.request('PUT', path, finalData);
+  },
   delete: (path)       => API.request('DELETE', path),
 
   // Usuário logado (salvo em sessionStorage)
