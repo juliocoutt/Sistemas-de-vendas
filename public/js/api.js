@@ -18,8 +18,21 @@ const API = {
     return json;
   },
 
-  get:    (path)       => API.request('GET',    path),
-  post:   (path, data) => API.request('POST',   path, data),
+  get(path) {
+    let finalPath = path;
+    if (window.currentMasterLojaId && !path.includes('/lojas') && !path.includes('/master') && !path.includes('/configuracoes')) {
+      const sep = path.includes('?') ? '&' : '?';
+      finalPath = `${path}${sep}loja_id=${window.currentMasterLojaId}`;
+    }
+    return API.request('GET', finalPath);
+  },
+  post(path, data) {
+    let finalData = data;
+    if (window.currentMasterLojaId && data && typeof data === 'object' && !data.loja_id && !path.includes('/master')) {
+      finalData = { ...data, loja_id: Number(window.currentMasterLojaId) };
+    }
+    return API.request('POST', path, finalData);
+  },
   put:    (path, data) => API.request('PUT',    path, data),
   delete: (path)       => API.request('DELETE', path),
 

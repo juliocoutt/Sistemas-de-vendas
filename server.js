@@ -486,29 +486,39 @@ app.post('/api/mensageria/disparo', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Retorna vendedores com taxa de comissão individual
+// Retorna colaboradores/vendedores filtrados por loja (com comissão individual)
 app.get('/api/vendedores', async (req, res) => {
-  try { res.json(await asyncAll("SELECT id, nome, email, taxa_comissao FROM usuarios WHERE role IN ('vendedor', 'superadmin', 'gestor') ORDER BY nome")); }
-  catch (e) { res.status(500).json({ error: e.message }); }
+  try {
+    const { loja_id } = req.query;
+    let sql = "SELECT id, nome, email, role, taxa_comissao, permissoes, telefone FROM usuarios WHERE role IN ('vendedor', 'admin', 'gestor')";
+    const params = [];
+    if (loja_id) {
+      sql += " AND loja_id = $1";
+      params.push(Number(loja_id));
+    }
+    sql += " ORDER BY nome";
+    res.json(await asyncAll(sql, params));
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Cria novo vendedor com permissões e taxa de comissão
+// Cria novo vendedor ou administrador com cargo (role) selecionável
 app.post('/api/vendedores', async (req, res) => {
   try {
-    const { nome, email, senha, loja_id, permissoes, taxa_comissao } = req.body;
+    const { nome, email, senha, role, loja_id, permissoes, taxa_comissao, telefone } = req.body;
+    const userRole = role || 'vendedor';
     const r = await asyncRun(
-      'INSERT INTO usuarios (nome, email, senha_hash, role, loja_id, permissoes, taxa_comissao) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id',
-      [nome, email, senha, 'vendedor', loja_id || 1, permissoes ? JSON.stringify(permissoes) : '{}', taxa_comissao ?? 5.00]);
+      'INSERT INTO usuarios (nome, email, senha_hash, role, loja_id, permissoes, taxa_comissao, telefone) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id',
+      [nome, email, senha, userRole, loja_id || 1, permissoes ? JSON.stringify(permissoes) : '{}', taxa_comissao ?? 5.00, telefone || null]);
     res.status(201).json({ id: r.id, nome });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Atualiza dados, permissões e taxa de comissão do vendedor
+// Atualiza dados, permissões, cargo e comissão do vendedor/gerente
 app.put('/api/vendedores/:id', async (req, res) => {
   try {
-    const { nome, email, permissoes, taxa_comissao } = req.body;
-    await asyncRun('UPDATE usuarios SET nome=$1, email=$2, permissoes=$3, taxa_comissao=$4 WHERE id=$5',
-      [nome, email, permissoes ? JSON.stringify(permissoes) : '{}', taxa_comissao ?? 5.00, req.params.id]);
+    const { nome, email, role, permissoes, taxa_comissao, telefone } = req.body;
+    await asyncRun('UPDATE usuarios SET nome=$1, email=$2, role=$3, permissoes=$4, taxa_comissao=$5, telefone=$6 WHERE id=$7',
+      [nome, email, role || 'vendedor', permissoes ? JSON.stringify(permissoes) : '{}', taxa_comissao ?? 5.00, telefone || null, req.params.id]);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -599,29 +609,162 @@ app.delete('/api/despesas/:id', async (req, res) => {
 
 app.get('/api/financeiro/fluxo-caixa', async (req, res) => {
   try {
+    const { loja_id } = req.query;
     const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
-    const receitas = await asyncGet('SELECT COALESCE(SUM(total), 0) AS total FROM vendas WHERE data >= $1', [inicioMes]);
-    const despesas = await asyncGet('SELECT COALESCE(SUM(valor), 0) AS total FROM despesas WHERE data >= $1', [inicioMes]);
+    
+    let sqlRec = 'SELECT COALESCE(SUM(total), 0) AS total FROM vendas WHERE data >= $1';
+    let sqlDes = 'SELECT COALESCE(SUM(valor), 0) AS total FROM despesas WHERE data >= $1';
+    const params = [inicioMes];
+    if (loja_id) {
+      sqlRec += ' AND loja_id = $2';
+      sqlDes += ' AND loja_id = $2';
+      params.push(Number(loja_id));
+    }
+    
+    const receitas = await asyncGet(sqlRec, params);
+    const despesas = await asyncGet(sqlDes, params);
     res.json({ receitas: receitas.total, despesas: despesas.total, saldo: receitas.total - despesas.total });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ── Dashboard ──
+// ── Dashboard Principal de Loja (Filtrável por loja_id) ──
 app.get('/api/dashboard', async (req, res) => {
   try {
+    const { loja_id } = req.query;
     const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
     const hoje = new Date().toISOString().split('T')[0];
+    
+    let sqlMes = 'SELECT COALESCE(SUM(total), 0) AS valor FROM vendas WHERE data >= $1';
+    let sqlDia = 'SELECT COALESCE(SUM(total), 0) AS valor FROM vendas WHERE data::date = $1';
+    let sqlQtd = 'SELECT COUNT(*) AS qtd FROM vendas WHERE data >= $1';
+    let sqlCli = 'SELECT COUNT(*) AS qtd FROM clientes';
+    let sqlProd = 'SELECT COUNT(*) AS qtd FROM produtos WHERE ativo = 1';
+    let sqlEst = 'SELECT nome, estoque_atual FROM produtos WHERE estoque_atual <= 5 AND ativo = 1 ORDER BY estoque_atual';
+    let sqlTop = 'SELECT p.nome, SUM(iv.quantidade) AS total_vendido FROM itens_venda iv JOIN produtos p ON iv.produto_id = p.id JOIN vendas v ON iv.venda_id = v.id';
+    
+    const paramsMes = [inicioMes];
+    const paramsDia = [hoje];
+    const paramsTop = [];
+    
+    if (loja_id) {
+      sqlMes += ' AND loja_id = $2';
+      paramsMes.push(Number(loja_id));
+      
+      sqlDia += ' AND loja_id = $2';
+      paramsDia.push(Number(loja_id));
+      
+      sqlQtd += ' AND loja_id = $2';
+      
+      sqlTop += ' WHERE v.loja_id = $1';
+      paramsTop.push(Number(loja_id));
+    }
+    
+    sqlTop += ' GROUP BY p.id, p.nome ORDER BY total_vendido DESC LIMIT 5';
+    
     const [totalMes, totalDia, qtdVendas, totalClientes, totalProdutos, estoqueMin, topProdutos] = await Promise.all([
-      asyncGet('SELECT COALESCE(SUM(total), 0) AS valor FROM vendas WHERE data >= $1', [inicioMes]),
-      asyncGet('SELECT COALESCE(SUM(total), 0) AS valor FROM vendas WHERE data::date = $1', [hoje]),
-      asyncGet('SELECT COUNT(*) AS qtd FROM vendas WHERE data >= $1', [inicioMes]),
-      asyncGet('SELECT COUNT(*) AS qtd FROM clientes'),
-      asyncGet('SELECT COUNT(*) AS qtd FROM produtos WHERE ativo = 1'),
-      asyncAll('SELECT nome, estoque_atual FROM produtos WHERE estoque_atual <= 5 AND ativo = 1 ORDER BY estoque_atual'),
-      asyncAll('SELECT p.nome, SUM(iv.quantidade) AS total_vendido FROM itens_venda iv JOIN produtos p ON iv.produto_id = p.id GROUP BY p.id, p.nome ORDER BY total_vendido DESC LIMIT 5'),
+      asyncGet(sqlMes, paramsMes),
+      asyncGet(sqlDia, paramsDia),
+      asyncGet(sqlQtd, [inicioMes, ...(loja_id ? [Number(loja_id)] : [])]),
+      asyncGet(sqlCli),
+      asyncGet(sqlProd),
+      asyncAll(sqlEst),
+      asyncAll(sqlTop, paramsTop),
     ]);
-    res.json({ totalMes: totalMes.valor, totalDia: totalDia.valor, qtdVendas: qtdVendas.qtd,
-      totalClientes: totalClientes.qtd, totalProdutos: totalProdutos.qtd, estoqueMin, topProdutos });
+    
+    res.json({ 
+      totalMes: totalMes.valor, 
+      totalDia: totalDia.valor, 
+      qtdVendas: qtdVendas.qtd,
+      totalClientes: totalClientes.qtd, 
+      totalProdutos: totalProdutos.qtd, 
+      estoqueMin, 
+      topProdutos 
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── 👑 PAINEL MASTER (Somente Superadmin) ──
+
+// Dashboard consolidado para o Dono do Sistema
+app.get('/api/master/dashboard', async (req, res) => {
+  try {
+    const [lojas, usuarios, vendas, faturamento] = await Promise.all([
+      asyncGet('SELECT COUNT(*) AS count FROM lojas'),
+      asyncGet('SELECT COUNT(*) AS count FROM usuarios'),
+      asyncGet('SELECT COUNT(*) AS count FROM vendas'),
+      asyncGet('SELECT COALESCE(SUM(total), 0) AS valor FROM vendas')
+    ]);
+    res.json({
+      totalLojas: lojas.count,
+      totalUsuarios: usuarios.count,
+      totalVendas: vendas.count,
+      totalFaturamento: faturamento.valor
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Retorna todos os usuários cadastrados no ecossistema (Master View)
+app.get('/api/usuarios/master', async (req, res) => {
+  try {
+    res.json(await asyncAll(`
+      SELECT u.id, u.nome, u.email, u.role, u.telefone, u.loja_id, l.nome as loja_nome 
+      FROM usuarios u 
+      LEFT JOIN lojas l ON u.loja_id = l.id 
+      ORDER BY l.nome, u.nome
+    `));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Criação integrada de Novo Cliente (Loja + Administrador Principal da Loja)
+app.post('/api/master/clientes', async (req, res) => {
+  try {
+    const { loja_nome, cnpj, endereco, telefone, email, admin_nome, admin_email, admin_senha } = req.body;
+    
+    // 1. Insere a loja
+    const storeRes = await asyncRun(
+      'INSERT INTO lojas (nome, cnpj, endereco, telefone, email) VALUES ($1,$2,$3,$4,$5) RETURNING id',
+      [loja_nome, cnpj || null, endereco || null, telefone || null, email || null]
+    );
+    const loja_id = storeRes.id;
+    
+    // 2. Insere o administrador inicial dessa loja
+    const permissoesPadrao = {
+      dashboard: { ler: true, escrever: true, excluir: true },
+      financeiro: { ler: true, escrever: true, excluir: true },
+      pdv: { ler: true, escrever: true, excluir: true },
+      vendas: { ler: true, escrever: true, excluir: true },
+      produtos: { ler: true, escrever: true, excluir: true },
+      estoque: { ler: true, escrever: true, excluir: true },
+      clientes: { ler: true, escrever: true, excluir: true },
+      entregas: { ler: true, escrever: true, excluir: true }
+    };
+    
+    await asyncRun(
+      'INSERT INTO usuarios (nome, email, senha_hash, role, loja_id, permissoes) VALUES ($1, $2, $3, $4, $5, $6)',
+      [admin_nome, admin_email, admin_senha, 'admin', loja_id, JSON.stringify(permissoesPadrao)]
+    );
+    
+    res.status(201).json({ success: true, loja_id, loja_nome });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Edição de Loja (Master)
+app.put('/api/lojas/:id', async (req, res) => {
+  try {
+    const { nome, cnpj, endereco, telefone, email } = req.body;
+    await asyncRun(
+      'UPDATE lojas SET nome=$1, cnpj=$2, endereco=$3, telefone=$4, email=$5 WHERE id=$6',
+      [nome, cnpj, endereco, telefone, email, req.params.id]
+    );
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Exclusão de Loja (Master)
+app.delete('/api/lojas/:id', async (req, res) => {
+  try {
+    await asyncRun('DELETE FROM lojas WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

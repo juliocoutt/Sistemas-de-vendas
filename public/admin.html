@@ -46,8 +46,22 @@
       <small>Sistema de Varejo</small>
     </div>
     <nav class="sidebar-nav">
+      <!-- ── Grupo: Painel Master 👑 (Somente Admin Master) ── -->
+      <div id="grupo-master-section" class="sidebar-section" onclick="toggleSidebarGroup('grupo-master', this)" style="display:none; border-left: 4px solid var(--sidebar-active);">
+        <span>👑 Painel Master</span>
+        <span class="sidebar-section-arrow">▼</span>
+      </div>
+      <div id="grupo-master" class="sidebar-group-content" style="display:none;">
+        <a class="nav-item" id="nav-master_dashboard" onclick="showPage('master_dashboard')">
+          <span class="icon">📊</span><span>Painel Master</span>
+        </a>
+        <a class="nav-item" id="nav-master_lojas" onclick="showPage('master_lojas')">
+          <span class="icon">🏬</span><span>Clientes (Lojas)</span>
+        </a>
+      </div>
+
       <!-- ── Grupo: Visão Geral ── -->
-      <div class="sidebar-section" onclick="toggleSidebarGroup('grupo-visao-geral', this)">
+      <div id="grupo-visao-geral-section" class="sidebar-section" onclick="toggleSidebarGroup('grupo-visao-geral', this)">
         <span>Visão Geral</span>
         <span class="sidebar-section-arrow">▼</span>
       </div>
@@ -61,7 +75,7 @@
       </div>
 
       <!-- ── Grupo: Operação ── -->
-      <div class="sidebar-section" onclick="toggleSidebarGroup('grupo-operacao', this)">
+      <div id="grupo-operacao-section" class="sidebar-section" onclick="toggleSidebarGroup('grupo-operacao', this)">
         <span>Operação</span>
         <span class="sidebar-section-arrow">▼</span>
       </div>
@@ -81,7 +95,7 @@
       </div>
 
       <!-- ── Grupo: Cadastros ── -->
-      <div class="sidebar-section" onclick="toggleSidebarGroup('grupo-cadastros', this)">
+      <div id="grupo-cadastros-section" class="sidebar-section" onclick="toggleSidebarGroup('grupo-cadastros', this)">
         <span>Cadastros</span>
         <span class="sidebar-section-arrow">▼</span>
       </div>
@@ -110,7 +124,7 @@
       </div>
 
       <!-- ── Grupo: Logística & CRM ── -->
-      <div class="sidebar-section" onclick="toggleSidebarGroup('grupo-logistica-crm', this)">
+      <div id="grupo-logistica-crm-section" class="sidebar-section" onclick="toggleSidebarGroup('grupo-logistica-crm', this)">
         <span>Logística & CRM</span>
         <span class="sidebar-section-arrow">▼</span>
       </div>
@@ -141,9 +155,15 @@
   <!-- ── Main ── -->
   <div class="main-content">
     <div class="topbar">
-      <div style="display:flex; align-items:center; gap:1rem;">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
         <button id="menuToggle" class="btn btn-secondary btn-sm" style="padding:0.4rem 0.6rem; font-size:1.2rem; background:transparent; border:none; color:var(--text-primary); cursor:pointer;">☰</button>
         <span class="topbar-title" id="topbarTitle">Dashboard</span>
+        
+        <!-- Dropdown Premium de Switcher de Lojas (Somente Admin Master) -->
+        <div id="masterStoreSwitcherContainer" style="display:none; align-items:center; gap:0.5rem; background:rgba(22,56,50,0.06); padding:0.4rem 0.8rem; border-radius:99px; border:1px solid var(--border); margin-left:1rem;">
+          <span style="font-size:0.75rem; font-weight:700; color:var(--primary);">Visualizar Loja:</span>
+          <select id="masterLojaSelector" onchange="selecionarLojaMaster(this.value)" style="background:transparent; border:none; font-size:0.8rem; font-weight:600; color:var(--primary); padding:0; outline:none; cursor:pointer; width:auto; max-width:180px;"></select>
+        </div>
       </div>
       <div class="topbar-actions" id="topbarActions"></div>
     </div>
@@ -168,7 +188,7 @@
 
 <script src="js/api.js"></script>
 <script>
-/* ── Autenticação ── */
+/* ── Autenticação e Configuração de Nível de Acesso ── */
 if (!API.checkAuth()) { /* checkAuth redireciona */ }
 const user = API.getUsuario();
 if (user) {
@@ -176,20 +196,36 @@ if (user) {
   if (user.foto) {
     document.getElementById('sidebarAvatar').src = user.foto;
   }
-  if (user.role === 'admin' || user.role === 'superadmin') {
+  
+  aplicarRegrasAcessoRole(user.role);
+}
+
+function aplicarRegrasAcessoRole(role) {
+  if (role === 'superadmin') {
+    // 1. Exibe menu master
+    document.getElementById('grupo-master-section').style.display = 'flex';
+    document.getElementById('grupo-master').style.display = 'block';
+    
+    // 2. Exibe switcher de lojas master no cabeçalho
+    const switcher = document.getElementById('masterStoreSwitcherContainer');
+    if (switcher) switcher.style.display = 'flex';
+    carregarSwitcherLojasMaster();
+  } else if (role === 'vendedor') {
+    // Vendedor: Esconde páginas administrativas/financeiras
+    const restritos = ['nav-financeiro', 'nav-produtos', 'nav-kits', 'nav-estoque', 'nav-lojas', 'nav-vendedores', 'nav-entregadores', 'nav-mensageria', 'nav-configuracoes', 'nav-campanhas'];
+    restritos.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.setProperty('display', 'none', 'important');
+    });
+    
+    // Se o grupo ficar vazio, esconde ele
+    document.getElementById('grupo-visao-geral-section').style.display = 'none';
+    document.getElementById('grupo-visao-geral').style.display = 'none';
+    document.getElementById('nav-campanhas').style.display = 'none';
+  } else {
+    // Cliente Admin / Gestor
     const navConf = document.getElementById('nav-configuracoes');
     if (navConf) navConf.style.display = 'flex';
-  } else {
-    // Aplicar permissões do vendedor (ocultar menus sem acesso de leitura)
-    let perms = {};
-    try { perms = typeof user.permissoes === 'string' ? JSON.parse(user.permissoes) : user.permissoes || {}; } catch(e){}
-    const modulos = ['dashboard', 'financeiro', 'pdv', 'vendas', 'produtos', 'estoque', 'clientes', 'entregas'];
-    modulos.forEach(m => {
-      if (!perms[m] || !perms[m].ler) {
-        const navEl = document.getElementById(`nav-${m}`);
-        if (navEl) navEl.style.display = 'none';
-      }
-    });
   }
 }
 
@@ -243,7 +279,7 @@ function toggleSidebarGroup(groupId, headerEl) {
 
 // Ao carregar a página, restaura o estado de abertura/fechamento de cada grupo
 document.addEventListener('DOMContentLoaded', () => {
-  ['grupo-visao-geral', 'grupo-operacao', 'grupo-cadastros', 'grupo-logistica-crm'].forEach(id => {
+  ['grupo-master', 'grupo-visao-geral', 'grupo-operacao', 'grupo-cadastros', 'grupo-logistica-crm'].forEach(id => {
     const content = document.getElementById(id);
     if (!content) return;
     
@@ -258,20 +294,89 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
+/* ── Switcher de Lojas para o Admin Master ── */
+async function carregarSwitcherLojasMaster() {
+  try {
+    const lojas = await API.get('/lojas');
+    const selector = document.getElementById('masterLojaSelector');
+    if (!selector) return;
+    
+    selector.innerHTML = `
+      <option value="">-- Ver Todas --</option>
+      ${lojas.map(l => `<option value="${l.id}">${l.nome}</option>`).join('')}
+    `;
+    
+    if (window.currentMasterLojaId) {
+      selector.value = window.currentMasterLojaId;
+    }
+  } catch(e) {
+    console.error('Erro ao carregar lojas para o switcher:', e);
+  }
+}
+
+function selecionarLojaMaster(lojaId) {
+  window.currentMasterLojaId = lojaId || null;
+  const activeNavItem = document.querySelector('.nav-item.active');
+  if (activeNavItem) {
+    const pageId = activeNavItem.id.replace('nav-', '');
+    showPage(pageId);
+  } else {
+    showPage(user.role === 'superadmin' ? 'master_dashboard' : 'dashboard');
+  }
+}
+
 /* ── Navegação ── */
-const pages = ['dashboard','financeiro','vendas','produtos','kits','estoque','clientes','lojas','vendedores','comissoes','campanhas','entregadores','entregas','mensageria', 'configuracoes'];
+const pages = ['dashboard','financeiro','vendas','produtos','kits','estoque','clientes','lojas','vendedores','comissoes','campanhas','entregadores','entregas','mensageria', 'configuracoes','master_dashboard','master_lojas'];
 function showPage(name) {
   pages.forEach(p => document.getElementById(`nav-${p}`)?.classList.remove('active'));
   document.getElementById(`nav-${name}`)?.classList.add('active');
   document.getElementById('topbarActions').innerHTML = '';
-  const map = { dashboard:'Dashboard', financeiro:'Fluxo de Caixa', vendas:'Vendas', produtos:'Produtos', kits:'Kits e Combos', estoque:'Estoque', clientes:'Clientes', lojas:'Lojas', vendedores:'Vendedores', comissoes:'Comissões', campanhas:'Campanhas Promocionais', entregadores:'Entregadores', entregas:'Painel de Entregas', mensageria:'CRM Inteligente', configuracoes:'Configurações do Sistema', perfil:'Meu Perfil' };
+  const map = { 
+    dashboard:'Dashboard', 
+    financeiro:'Fluxo de Caixa', 
+    vendas:'Vendas', 
+    produtos:'Produtos', 
+    kits:'Kits e Combos', 
+    estoque:'Estoque', 
+    clientes:'Clientes', 
+    lojas:'Lojas', 
+    vendedores:'Vendedores e Acessos', 
+    comissoes:'Comissões', 
+    campanhas:'Campanhas Promocionais', 
+    entregadores:'Entregadores', 
+    entregas:'Painel de Entregas', 
+    mensageria:'CRM Inteligente', 
+    configuracoes:'Configurações do Sistema', 
+    perfil:'Meu Perfil',
+    master_dashboard: '👑 Painel Master',
+    master_lojas: '👑 Clientes (Lojas)'
+  };
   document.getElementById('topbarTitle').textContent = map[name] || name;
   const pc = document.getElementById('pageContent');
   pc.style.opacity = '0';
   setTimeout(() => { pc.style.transition = 'opacity .3s'; pc.style.opacity = '1'; }, 10);
-  ({ dashboard: renderDashboard, financeiro: renderFinanceiro, vendas: renderVendas, produtos: renderProdutos, kits: renderKits, estoque: renderEstoque, clientes: renderClientes, lojas: renderLojas, vendedores: renderVendedores, comissoes: renderComissoes, campanhas: renderCampanhas, entregadores: renderEntregadores, entregas: renderEntregas, mensageria: renderMensageria, configuracoes: renderConfiguracoes, perfil: renderPerfil })[name]?.();
+  ({ 
+    dashboard: renderDashboard, 
+    financeiro: renderFinanceiro, 
+    vendas: renderVendas, 
+    produtos: renderProdutos, 
+    kits: renderKits, 
+    estoque: renderEstoque, 
+    clientes: renderClientes, 
+    lojas: renderLojas, 
+    vendedores: renderVendedores, 
+    comissoes: renderComissoes, 
+    campanhas: renderCampanhas, 
+    entregadores: renderEntregadores, 
+    entregas: renderEntregas, 
+    mensageria: renderMensageria, 
+    configuracoes: renderConfiguracoes, 
+    perfil: renderPerfil,
+    master_dashboard: renderMasterDashboard,
+    master_lojas: renderMasterLojas
+  })[name]?.();
 }
-showPage('dashboard');
+showPage(user.role === 'superadmin' ? 'master_dashboard' : 'dashboard');
 
 /* ════════════════════════════════════════
    DASHBOARD
@@ -1036,7 +1141,7 @@ async function salvarLoja() {
    VENDEDORES
 ════════════════════════════════════════ */
 async function renderVendedores() {
-  document.getElementById('topbarActions').innerHTML = `<button class="btn btn-primary btn-sm" onclick="abrirModalVendedor()">+ Novo Vendedor</button>`;
+  document.getElementById('topbarActions').innerHTML = `<button class="btn btn-primary btn-sm" onclick="abrirModalVendedor()">+ Novo Colaborador</button>`;
   const pc = document.getElementById('pageContent');
   pc.innerHTML = `<div class="empty-state"><span class="spinner" style="width:32px;height:32px;border-width:3px;"></span></div>`;
   try {
@@ -1045,30 +1150,40 @@ async function renderVendedores() {
       <div class="card">
         <div class="table-wrapper">
           <table>
-            <thead><tr><th>ID</th><th>Nome</th><th>E-mail</th><th style="text-align:center;">Comissão %</th><th>Ações</th></tr></thead>
+            <thead><tr><th>ID</th><th>Nome</th><th>E-mail</th><th>Cargo</th><th style="text-align:center;">Comissão %</th><th>Ações</th></tr></thead>
             <tbody>
               ${vendedores.map(v => `
                 <tr>
                   <td><strong>#${v.id}</strong></td>
-                  <td>${v.nome}</td>
+                  <td>
+                    <div style="font-weight:600; color:var(--primary);">${v.nome}</div>
+                    ${v.telefone ? `<small style="color:var(--text-muted);">${v.telefone}</small>` : ''}
+                  </td>
                   <td>${v.email}</td>
-                  <td style="text-align:center;"><span class="badge badge-blue">${parseFloat(v.taxa_comissao || 5).toFixed(1)}%</span></td>
-                  <td><button class="btn btn-ghost btn-sm" onclick='editarComissaoVendedor(${v.id}, ${v.taxa_comissao || 5})' title="Editar taxa de comissão">✏️</button></td>
+                  <td>
+                    <span class="badge" style="background:${v.role === 'admin' ? 'rgba(35,83,71,0.1)' : 'rgba(142,182,155,0.25)'}; color:var(--primary); font-weight:700;">
+                      ${v.role === 'admin' ? 'Gerente / Admin' : 'Vendedor'}
+                    </span>
+                  </td>
+                  <td style="text-align:center;"><span class="badge badge-blue" style="font-weight:600;">${parseFloat(v.taxa_comissao || 5).toFixed(1)}%</span></td>
+                  <td>
+                    <button class="btn btn-ghost btn-sm" onclick='editarComissaoVendedor(${v.id}, ${v.taxa_comissao || 5})' title="Editar taxa de comissão">✏️ Editar Comissão</button>
+                  </td>
                 </tr>`).join('')}
             </tbody>
           </table>
         </div>
       </div>`;
-  } catch (e) { pc.innerHTML = `<div class="empty-state"><p>Erro ao carregar vendedores.</p></div>`; }
+  } catch (e) { pc.innerHTML = `<div class="empty-state"><p>Erro ao carregar colaboradores.</p></div>`; }
 }
 
 function abrirModalVendedor() {
-  document.getElementById('modalTitulo').textContent = 'Novo Vendedor';
+  document.getElementById('modalTitulo').textContent = 'Novo Colaborador (Acesso)';
   const modulos = ['dashboard','financeiro','pdv','vendas','produtos','estoque','clientes','entregas'];
   
   const permHtml = modulos.map(m => `
     <tr>
-      <td style="text-transform:capitalize;">${m}</td>
+      <td style="text-transform:capitalize; font-weight:600;">${m}</td>
       <td style="text-align:center;"><input type="checkbox" id="perm_${m}_ler" checked></td>
       <td style="text-align:center;"><input type="checkbox" id="perm_${m}_escrever"></td>
       <td style="text-align:center;"><input type="checkbox" id="perm_${m}_excluir"></td>
@@ -1076,53 +1191,83 @@ function abrirModalVendedor() {
   `).join('');
 
   document.getElementById('modalCorpo').innerHTML = `
-    <div class="input-group"><label>Nome *</label><input id="vNome" placeholder="Nome do vendedor"></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
-      <div class="input-group"><label>E-mail *</label><input id="vEmail" type="email" placeholder="vendedor@loja.com"></div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:.75rem;">
+      <div class="input-group"><label>Nome Completo *</label><input id="vNome" placeholder="Ex: Lucas Mendes"></div>
+      <div class="input-group">
+        <label>Cargo / Nível de Acesso *</label>
+        <select id="vRole" onchange="alterarCargoModalVendedor(this.value)" style="padding:0.6rem; border-radius:var(--radius-sm); border:1px solid var(--border); width:100%; outline:none; font-family:inherit; font-weight:600; color:var(--text-primary);">
+          <option value="vendedor" selected>Vendedor (Acesso Limitado)</option>
+          <option value="admin">Administrador / Gerente (Acesso Total)</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:.75rem;">
+      <div class="input-group"><label>E-mail *</label><input id="vEmail" type="email" placeholder="email@loja.com"></div>
       <div class="input-group"><label>Senha *</label><input id="vSenha" type="password" placeholder="******"></div>
     </div>
-    <div class="input-group" style="max-width:200px;">
-      <label>Taxa de Comissão (%) <span style="font-size:0.75rem;color:var(--text-muted);">Padrão: 5%</span></label>
-      <input id="vComissao" type="number" step="0.1" min="0" max="100" value="5" placeholder="5.0">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:.75rem;">
+      <div class="input-group"><label>Telefone</label><input id="vTelefone" placeholder="(00) 00000-0000"></div>
+      <div class="input-group">
+        <label>Taxa de Comissão (%) <span style="font-size:0.75rem;color:var(--text-muted);">Padrão: 5%</span></label>
+        <input id="vComissao" type="number" step="0.1" min="0" max="100" value="5" placeholder="5.0">
+      </div>
     </div>
-    <h4 style="margin-top:1rem;margin-bottom:0.5rem;">Permissões de Acesso</h4>
-    <div class="table-wrapper" style="max-height:250px; overflow-y:auto;">
-      <table style="font-size:0.8rem;">
-        <thead style="position:sticky;top:0;background:var(--bg-surface);">
-          <tr><th>Módulo</th><th style="text-align:center;">Acessar</th><th style="text-align:center;">Cadastrar/Editar</th><th style="text-align:center;">Excluir</th></tr>
-        </thead>
-        <tbody>${permHtml}</tbody>
-      </table>
+    <div id="permissoesContainer">
+      <h4 style="margin-top:1rem;margin-bottom:0.5rem; color:var(--primary); font-weight:700;">Permissões de Acesso do Vendedor</h4>
+      <div class="table-wrapper" style="max-height:250px; overflow-y:auto; border:1px solid var(--border); border-radius:8px;">
+        <table style="font-size:0.8rem;">
+          <thead style="position:sticky;top:0;background:var(--bg-surface);">
+            <tr><th>Módulo</th><th style="text-align:center;">Acessar</th><th style="text-align:center;">Cadastrar/Editar</th><th style="text-align:center;">Excluir</th></tr>
+          </thead>
+          <tbody>${permHtml}</tbody>
+        </table>
+      </div>
     </div>
   `;
   document.getElementById('modalRodape').innerHTML = `
     <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
-    <button class="btn btn-primary" onclick="salvarVendedor()">💾 Salvar</button>
+    <button class="btn btn-primary" onclick="salvarVendedor()">💾 Salvar Colaborador</button>
   `;
   document.getElementById('modalGenerico').style.display = 'flex';
+}
+
+function alterarCargoModalVendedor(role) {
+  const container = document.getElementById('permissoesContainer');
+  if (role === 'admin') {
+    if (container) container.style.display = 'none';
+  } else {
+    if (container) container.style.display = 'block';
+  }
 }
 
 async function salvarVendedor() {
   const nome = document.getElementById('vNome').value.trim();
   const email = document.getElementById('vEmail').value.trim();
   const senha = document.getElementById('vSenha').value.trim();
+  const role = document.getElementById('vRole').value;
+  const telefone = document.getElementById('vTelefone').value.trim();
   const taxa_comissao = parseFloat(document.getElementById('vComissao').value) || 5;
-  if (!nome || !email || !senha) { showToast('Preencha todos os campos.', 'error'); return; }
+  if (!nome || !email || !senha) { showToast('Preencha todos os campos obrigatórios.', 'error'); return; }
 
-  // Monta o objeto de permissões por módulo
   const modulos = ['dashboard','financeiro','pdv','vendas','produtos','estoque','clientes','entregas'];
   const permissoes = {};
-  modulos.forEach(m => {
-    permissoes[m] = {
-      ler: document.getElementById(`perm_${m}_ler`).checked,
-      escrever: document.getElementById(`perm_${m}_escrever`).checked,
-      excluir: document.getElementById(`perm_${m}_excluir`).checked
-    };
-  });
+  if (role === 'admin') {
+    modulos.forEach(m => {
+      permissoes[m] = { ler: true, escrever: true, excluir: true };
+    });
+  } else {
+    modulos.forEach(m => {
+      permissoes[m] = {
+        ler: document.getElementById(`perm_${m}_ler`).checked,
+        escrever: document.getElementById(`perm_${m}_escrever`).checked,
+        excluir: document.getElementById(`perm_${m}_excluir`).checked
+      };
+    });
+  }
 
   try {
-    await API.post('/vendedores', { nome, email, senha, loja_id: user.loja_id, permissoes, taxa_comissao });
-    showToast('Vendedor cadastrado!', 'success');
+    await API.post('/vendedores', { nome, email, senha, role, loja_id: user.loja_id, permissoes, taxa_comissao, telefone });
+    showToast('Colaborador cadastrado com sucesso!', 'success');
     fecharModal(); renderVendedores();
   } catch (e) { showToast(e.message, 'error'); }
 }
@@ -3759,6 +3904,226 @@ function getLocalFallbackChatbotReply(mensagem) {
     return `A comissão do vendedor é de 5% por padrão e pode ser personalizada na tela **Vendedores** clicando no ícone do lápis ✏️. O relatório geral fica na aba **Comissões**.`;
   }
   return `Olá! Entendi sua dúvida. O **VarejoOS** possui módulos integrados de:\n- **Frente de Caixa (PDV):** Vendas ágeis, cupons e descontos com senha.\n- **Produtos & Estoque:** Cadastros, variações e importações Excel.\n- **CRM Inteligente:** Oportunidades, SAC Tickets, devoluções e automações.\n- **Financeiro:** Contas a pagar/receber e DRE.\n\nExperimente perguntar sobre "cadastrar produto", "devolução" ou "comissão"!`;
+}
+
+/* ════════════════════════════════════════
+   PAINEL MASTER: DASHBOARD GLOBAL
+   (Visão 360º de todas as lojas parceiras)
+════════════════════════════════════════ */
+async function renderMasterDashboard() {
+  const pc = document.getElementById('pageContent');
+  pc.innerHTML = `<div class="empty-state"><span class="spinner" style="width:32px;height:32px;border-width:3px;"></span></div>`;
+  try {
+    const d = await API.get('/master/dashboard');
+    pc.innerHTML = `
+      <div class="kpi-grid">
+        <div class="kpi-card" style="animation-delay:.0s; border-top: 4px solid var(--sidebar-active);">
+          <div class="kpi-icon" style="background:rgba(142,182,155,0.2); color:var(--sidebar-active);">🏬</div>
+          <div class="kpi-label">Empresas / Lojas Ativas</div>
+          <div class="kpi-value">${d.totalLojas}</div>
+        </div>
+        <div class="kpi-card" style="animation-delay:.05s; border-top: 4px solid var(--sidebar-active);">
+          <div class="kpi-icon" style="background:rgba(142,182,155,0.2); color:var(--sidebar-active);">👥</div>
+          <div class="kpi-label">Usuários Cadastrados</div>
+          <div class="kpi-value">${d.totalUsuarios}</div>
+        </div>
+        <div class="kpi-card" style="animation-delay:.1s; border-top: 4px solid var(--sidebar-active);">
+          <div class="kpi-icon" style="background:rgba(142,182,155,0.2); color:var(--sidebar-active);">🧾</div>
+          <div class="kpi-label">Total de Vendas (Geral)</div>
+          <div class="kpi-value">${d.totalVendas}</div>
+        </div>
+        <div class="kpi-card" style="animation-delay:.15s; border-top: 4px solid var(--sidebar-active);">
+          <div class="kpi-icon" style="background:rgba(142,182,155,0.2); color:var(--sidebar-active);">💰</div>
+          <div class="kpi-label">Faturamento Acumulado</div>
+          <div class="kpi-value">${fmt.brl(d.totalFaturamento)}</div>
+        </div>
+      </div>
+      
+      <div style="display:grid; grid-template-columns:1fr; gap:1.5rem; margin-top:2rem;">
+        <div class="card" style="border-top: 4px solid var(--sidebar-active);">
+          <h3 style="margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">👑 Status de Uso do Sistema</h3>
+          <p style="color:var(--text-secondary); margin-bottom:1.5rem; line-height: 1.6;">
+            Você está acessando o painel de controle administrativo do VarejoOS como <strong>Admin Master (Julio)</strong>.
+            Utilize o menu superior <strong>"Visualizar Loja"</strong> para selecionar qualquer cliente/loja parceira e inspecionar em tempo real seu estoque, vendas, fluxo de caixa e relatórios como se fosse o administrador da própria empresa.
+          </p>
+          <div style="background:var(--bg-base); padding:1rem; border-radius:var(--radius-md); border-left:4px solid var(--primary);">
+            <h4 style="margin-bottom:0.3rem; color:var(--primary);">💡 Dica Operacional</h4>
+            <small style="color:var(--text-secondary); font-size:0.8rem; display:block; line-height:1.4;">
+              Para liberar o acesso a um novo cliente, navegue até a aba <strong>"Clientes (Lojas)"</strong> no menu da barra lateral e clique em <strong>"+ Novo Cliente"</strong>. O sistema gerará a empresa e a conta de administrador inicial daquela loja automaticamente.
+            </small>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (e) {
+    pc.innerHTML = `<div class="empty-state"><p>Erro ao carregar o dashboard consolidado.</p></div>`;
+  }
+}
+
+/* ════════════════════════════════════════
+   PAINEL MASTER: CADASTRO E GESTÃO DE CLIENTES (LOJAS)
+════════════════════════════════════════ */
+async function renderMasterLojas() {
+  document.getElementById('topbarActions').innerHTML = `<button class="btn btn-primary btn-sm" onclick="abrirModalMasterCliente()">+ Novo Cliente</button>`;
+  const pc = document.getElementById('pageContent');
+  pc.innerHTML = `<div class="empty-state"><span class="spinner" style="width:32px;height:32px;border-width:3px;"></span></div>`;
+  try {
+    const lojas = await API.get('/lojas');
+    pc.innerHTML = `
+      <div class="card" style="border-top: 4px solid var(--sidebar-active);">
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Nome da Loja / Empresa</th>
+                <th>CNPJ</th>
+                <th>E-mail</th>
+                <th>Telefone</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${lojas.map(l => `
+                <tr>
+                  <td><strong>#${l.id}</strong></td>
+                  <td>
+                    <div style="font-weight:600; color:var(--primary);">${l.nome}</div>
+                    ${l.endereco ? `<small style="display:block; font-size:0.75rem; color:var(--text-muted);">${l.endereco}</small>` : ''}
+                  </td>
+                  <td>${l.cnpj || '<span style="color:var(--text-muted);">Não informado</span>'}</td>
+                  <td>${l.email || '<span style="color:var(--text-muted);">Não informado</span>'}</td>
+                  <td>${l.telefone || '<span style="color:var(--text-muted);">Não informado</span>'}</td>
+                  <td>
+                    <button class="btn btn-ghost btn-sm" onclick='editarMasterLoja(${JSON.stringify(l)})' title="Editar Loja">✏️ Editar</button>
+                    <button class="btn btn-ghost btn-sm" onclick='excluirMasterLoja(${l.id}, "${l.nome}")' title="Excluir Loja" style="color:var(--danger); font-weight:bold;">🗑️ Excluir</button>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  } catch (e) {
+    pc.innerHTML = `<div class="empty-state"><p>Erro ao carregar lista de lojas parceiras.</p></div>`;
+  }
+}
+
+function abrirModalMasterCliente() {
+  document.getElementById('modalTitulo').textContent = 'Cadastrar Novo Cliente (Loja + Admin)';
+  document.getElementById('modalCorpo').innerHTML = `
+    <h4 style="margin-bottom:0.75rem; border-bottom:1px solid var(--border); padding-bottom:0.25rem; color:var(--primary);">🏬 Dados da Empresa (Loja)</h4>
+    <div class="input-group"><label>Nome da Loja *</label><input id="mlNome" placeholder="Ex: Farmácia Popular"></div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:.75rem;">
+      <div class="input-group"><label>CNPJ</label><input id="mlCnpj" placeholder="00.000.000/0000-00"></div>
+      <div class="input-group"><label>Telefone</label><input id="mlTelefone" placeholder="(00) 00000-0000"></div>
+    </div>
+    <div class="input-group"><label>E-mail Corporativo</label><input id="mlEmail" type="email" placeholder="contato@empresa.com"></div>
+    <div class="input-group"><label>Endereço Completo</label><input id="mlEndereco" placeholder="Av. Paulista, 1000 - São Paulo/SP"></div>
+    
+    <h4 style="margin-top:1.5rem; margin-bottom:0.75rem; border-bottom:1px solid var(--border); padding-bottom:0.25rem; color:var(--primary);">🧑‍💼 Administrador Principal da Loja</h4>
+    <div class="input-group"><label>Nome Completo do Admin *</label><input id="mlAdminNome" placeholder="Ex: João da Silva"></div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:.75rem;">
+      <div class="input-group"><label>E-mail de Login *</label><input id="mlAdminEmail" type="email" placeholder="admin@empresa.com"></div>
+      <div class="input-group"><label>Senha de Acesso *</label><input id="mlAdminSenha" type="password" placeholder="Defina a senha"></div>
+    </div>
+  `;
+  document.getElementById('modalRodape').innerHTML = `
+    <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+    <button class="btn btn-primary" onclick="salvarMasterCliente()">💾 Salvar e Criar Acesso</button>
+  `;
+  document.getElementById('modalGenerico').style.display = 'flex';
+}
+
+async function salvarMasterCliente() {
+  const mlNome = document.getElementById('mlNome');
+  const mlCnpj = document.getElementById('mlCnpj');
+  const mlTelefone = document.getElementById('mlTelefone');
+  const mlEmail = document.getElementById('mlEmail');
+  const mlEndereco = document.getElementById('mlEndereco');
+  
+  const mlAdminNome = document.getElementById('mlAdminNome');
+  const mlAdminEmail = document.getElementById('mlAdminEmail');
+  const mlAdminSenha = document.getElementById('mlAdminSenha');
+  
+  const loja_nome = mlNome.value.trim();
+  const cnpj = mlCnpj.value.trim();
+  const telefone = mlTelefone.value.trim();
+  const email = mlEmail.value.trim();
+  const endereco = mlEndereco.value.trim();
+  
+  const admin_nome = mlAdminNome.value.trim();
+  const admin_email = mlAdminEmail.value.trim();
+  const admin_senha = mlAdminSenha.value.trim();
+  
+  if (!loja_nome || !admin_nome || !admin_email || !admin_senha) {
+    showToast('Por favor, preencha os campos obrigatórios (*).', 'error');
+    return;
+  }
+  
+  try {
+    await API.post('/master/clientes', {
+      loja_nome, cnpj, telefone, email, endereco,
+      admin_nome, admin_email, admin_senha
+    });
+    showToast('Cliente cadastrado com sucesso!', 'success');
+    fecharModal();
+    renderMasterLojas();
+    carregarSwitcherLojasMaster();
+  } catch(e) {
+    showToast(e.message, 'error');
+  }
+}
+
+function editarMasterLoja(loja) {
+  document.getElementById('modalTitulo').textContent = 'Editar Empresa';
+  document.getElementById('modalCorpo').innerHTML = `
+    <div class="input-group"><label>Nome da Loja *</label><input id="mlEditNome" value="${loja.nome || ''}"></div>
+    <div class="input-group"><label>CNPJ</label><input id="mlEditCnpj" value="${loja.cnpj || ''}"></div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:.75rem;">
+      <div class="input-group"><label>E-mail</label><input id="mlEditEmail" type="email" value="${loja.email || ''}"></div>
+      <div class="input-group"><label>Telefone</label><input id="mlEditTelefone" value="${loja.telefone || ''}"></div>
+    </div>
+    <div class="input-group"><label>Endereço Completo</label><input id="mlEditEndereco" value="${loja.endereco || ''}"></div>
+  `;
+  document.getElementById('modalRodape').innerHTML = `
+    <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+    <button class="btn btn-primary" onclick="salvarEdicaoMasterLoja(${loja.id})">💾 Salvar Alterações</button>
+  `;
+  document.getElementById('modalGenerico').style.display = 'flex';
+}
+
+async function salvarEdicaoMasterLoja(id) {
+  const nome = document.getElementById('mlEditNome').value.trim();
+  const cnpj = document.getElementById('mlEditCnpj').value.trim();
+  const email = document.getElementById('mlEditEmail').value.trim();
+  const telefone = document.getElementById('mlEditTelefone').value.trim();
+  const endereco = document.getElementById('mlEditEndereco').value.trim();
+  
+  if (!nome) { showToast('Nome da loja é obrigatório.', 'error'); return; }
+  
+  try {
+    await API.put(`/lojas/${id}`, { nome, cnpj, email, telefone, endereco });
+    showToast('Loja atualizada com sucesso!', 'success');
+    fecharModal();
+    renderMasterLojas();
+    carregarSwitcherLojasMaster();
+  } catch(e) {
+    showToast(e.message, 'error');
+  }
+}
+
+async function excluirMasterLoja(id, nome) {
+  if (!confirm(`Deseja realmente excluir a loja "${nome}" e TODAS as suas informações vinculadas? Esta ação não pode ser desfeita.`)) return;
+  try {
+    await API.delete(`/lojas/${id}`);
+    showToast('Loja excluída do sistema!', 'success');
+    renderMasterLojas();
+    carregarSwitcherLojasMaster();
+  } catch(e) {
+    showToast(e.message, 'error');
+  }
 }
 </script>
 </body>
