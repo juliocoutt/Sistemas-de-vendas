@@ -475,42 +475,275 @@ async function salvarProduto(id) {
 /* ════════════════════════════════════════
    ESTOQUE
 ════════════════════════════════════════ */
+/* ════════════════════════════════════════
+   ESTOQUE
+   Sub-abas: Estoque Atual, Notas de Entrada, Curva ABC
+   ════════════════════════════════════════ */
+let estSubTabAtual = 'atual';
+let itensNotaEntradaTemp = [];
+
 async function renderEstoque() {
-  // Barra de ações de estoque: entrada, ajuste e importação via planilha
   document.getElementById('topbarActions').innerHTML = `
-    <button class="btn btn-ghost btn-sm" onclick="baixarModeloEstoque()" title="Baixar modelo para atualizar estoque em massa">📝 Baixar Modelo</button>
-    <input type="file" id="estoqueExcelFile" accept=".xlsx, .xls" style="display:none;" onchange="importarEstoqueExcel(event)">
-    <button class="btn btn-secondary btn-sm" onclick="document.getElementById('estoqueExcelFile').click()">📥 Importar Estoque</button>
-    <button class="btn btn-secondary btn-sm" onclick="abrirModalMovimento('entrada')">📥 Entrada</button>
-    <button class="btn btn-secondary btn-sm" onclick="abrirModalMovimento('ajuste')">🔧 Ajuste</button>
+    <div style="display:flex; gap:0.5rem;">
+      <button class="btn btn-secondary btn-sm" onclick="switchEstoqueTab('atual')">📦 Estoque Atual</button>
+      <button class="btn btn-secondary btn-sm" onclick="switchEstoqueTab('notas_entrada')">🧾 Notas de Entrada (NF)</button>
+      <button class="btn btn-secondary btn-sm" onclick="switchEstoqueTab('curva_abc')">📊 Curva ABC</button>
+    </div>
   `;
+  switchEstoqueTab(estSubTabAtual);
+}
+
+async function switchEstoqueTab(tab) {
+  estSubTabAtual = tab;
   const pc = document.getElementById('pageContent');
   pc.innerHTML = `<div class="empty-state"><span class="spinner" style="width:32px;height:32px;border-width:3px;"></span></div>`;
+  
+  document.querySelectorAll('#topbarActions button').forEach(btn => {
+     btn.classList.remove('btn-primary');
+     btn.classList.add('btn-secondary');
+  });
+  const btns = document.querySelectorAll('#topbarActions button');
+  if (tab === 'atual' && btns[0]) btns[0].className = 'btn btn-primary btn-sm';
+  if (tab === 'notas_entrada' && btns[1]) btns[1].className = 'btn btn-primary btn-sm';
+  if (tab === 'curva_abc' && btns[2]) btns[2].className = 'btn btn-primary btn-sm';
+
   try {
-    const itens = await API.get('/estoque');
-    pc.innerHTML = `
-      <div class="card">
-        <div class="card-header"><h3>Estoque Atual</h3></div>
-        <div class="table-wrapper">
-          <table>
-            <thead><tr><th>SKU</th><th>Produto</th><th>Categoria</th><th>Custo Unit.</th><th>Preço Venda</th><th>Estoque</th><th>Valor Total</th></tr></thead>
-            <tbody>
-              ${itens.map(p => `
-                <tr>
-                  <td><code style="font-size:.78rem;">${p.sku}</code></td>
-                  <td>${p.nome}</td>
-                  <td>${p.categoria || '—'}</td>
-                  <td>${p.custo ? fmt.brl(p.custo) : '—'}</td>
-                  <td>${fmt.brl(p.preco_venda)}</td>
-                  <td><span class="badge ${p.estoque_atual > 5 ? 'badge-green' : p.estoque_atual > 0 ? 'badge-yellow' : 'badge-red'}">${p.estoque_atual}</span></td>
-                  <td>${p.custo ? fmt.brl(p.custo * p.estoque_atual) : '—'}</td>
-                </tr>`).join('')}
-            </tbody>
-          </table>
+    if (tab === 'atual') {
+      const itens = await API.get('/estoque');
+      pc.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+          <h3 style="margin:0;">Estoque Atual</h3>
+          <div style="display:flex; gap:0.5rem;">
+            <button class="btn btn-ghost btn-sm" onclick="baixarModeloEstoque()" title="Baixar modelo para atualizar estoque em massa">📝 Baixar Modelo</button>
+            <input type="file" id="estoqueExcelFile" accept=".xlsx, .xls" style="display:none;" onchange="importarEstoqueExcel(event)">
+            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('estoqueExcelFile').click()">📥 Importar Estoque</button>
+            <button class="btn btn-secondary btn-sm" onclick="abrirModalMovimento('entrada')">📥 Entrada</button>
+            <button class="btn btn-secondary btn-sm" onclick="abrirModalMovimento('ajuste')">🔧 Ajuste</button>
+          </div>
         </div>
-      </div>`;
-    window.estoqueProdutos = itens;
-  } catch (e) { pc.innerHTML = `<div class="empty-state"><p>Erro ao carregar estoque.</p></div>`; }
+        <div class="card">
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>SKU</th><th>Produto</th><th>Categoria</th><th>Custo Médio</th><th>Preço Venda</th><th>Estoque</th><th>Margem (%)</th><th>Valor Total</th></tr></thead>
+              <tbody>
+                ${itens.map(p => {
+                  const custo = parseFloat(p.custo_medio || p.custo || 0);
+                  const preco = parseFloat(p.preco_venda || 0);
+                  const margem = preco > 0 ? ((preco - custo) / preco * 100).toFixed(1) : '0.0';
+                  return `
+                    <tr>
+                      <td><code style="font-size:.78rem;">${p.sku}</code></td>
+                      <td>${p.nome}</td>
+                      <td>${p.categoria || '—'}</td>
+                      <td>${custo ? fmt.brl(custo) : '—'}</td>
+                      <td>${fmt.brl(preco)}</td>
+                      <td><span class="badge ${p.estoque_atual > 5 ? 'badge-green' : p.estoque_atual > 0 ? 'badge-yellow' : 'badge-red'}">${p.estoque_atual}</span></td>
+                      <td style="font-weight:600; color:var(--success);">${margem}%</td>
+                      <td>${custo ? fmt.brl(custo * p.estoque_atual) : '—'}</td>
+                    </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>`;
+      window.estoqueProdutos = itens;
+    } 
+    else if (tab === 'notas_entrada') {
+      const notas = await API.get('/notas-entrada');
+      pc.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+          <h3 style="margin:0;">Notas de Entrada / Compra</h3>
+          <button class="btn btn-primary btn-sm" onclick="abrirModalNotaEntrada()">+ Registrar NF</button>
+        </div>
+        <div class="card">
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>NF</th><th>Fornecedor</th><th>Emissão</th><th>Entrada</th><th>Valor Total</th><th>Usuário</th><th>Observação</th></tr></thead>
+              <tbody>
+                ${notas.length ? notas.map(n => `
+                  <tr>
+                    <td><strong>#${n.numero_nf}</strong></td>
+                    <td>${n.fornecedor}</td>
+                    <td>${new Date(n.data_emissao).toLocaleDateString()}</td>
+                    <td>${fmt.date(n.data_entrada)}</td>
+                    <td style="font-weight:600; color:var(--primary);">${fmt.brl(n.valor_total)}</td>
+                    <td>${n.usuario_nome || '—'}</td>
+                    <td><small>${n.observacao || '—'}</small></td>
+                  </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted);">Nenhuma nota fiscal registrada.</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    } 
+    else if (tab === 'curva_abc') {
+      const curva = await API.get('/estoque/curva-abc');
+      pc.innerHTML = `
+        <div style="display:grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+          <div class="card">
+            <div class="card-header"><h3>Classificação Curva ABC Financeira</h3></div>
+            <div class="table-wrapper">
+              <table>
+                <thead><tr><th>Ranking</th><th>Produto</th><th>SKU</th><th>Qtd Vendida</th><th>Faturamento</th><th>Margem de Lucro</th><th>Classe</th></tr></thead>
+                <tbody>
+                  ${curva.map((p, i) => {
+                    const classes = { A: 'badge-blue', B: 'badge-yellow', C: 'badge-gray' };
+                    return `
+                      <tr>
+                        <td><strong>${i + 1}º</strong></td>
+                        <td>${p.nome}</td>
+                        <td><code>${p.sku}</code></td>
+                        <td>${p.qtd_vendida}</td>
+                        <td>${fmt.brl(p.faturamento)}</td>
+                        <td style="color:var(--success); font-weight:600;">${fmt.brl(p.margem_lucro)}</td>
+                        <td><span class="badge ${classes[p.classe]}">Classe ${p.classe}</span></td>
+                      </tr>`;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:1.5rem;">
+             <div class="card" style="border-left: 4px solid var(--primary);">
+                <h4>O que é a Curva ABC?</h4>
+                <p style="font-size:0.85rem; color:var(--text-secondary); margin-top:0.5rem; line-height:1.4;">
+                   Metodologia de categorização de estoque com base no impacto financeiro (Margem de Lucro acumulada):
+                </p>
+                <ul style="font-size:0.85rem; color:var(--text-secondary); margin-top:0.5rem; padding-left:1.25rem; line-height:1.5;">
+                   <li><strong>Classe A:</strong> Top 20% dos produtos que representam ~80% do lucro. <em>Nunca deixe faltar!</em></li>
+                   <li><strong>Classe B:</strong> Próximos 30% dos produtos que geram ~15% do lucro.</li>
+                   <li><strong>Classe C:</strong> Restante dos 50% dos produtos (cauda longa) que geram apenas ~5% do lucro.</li>
+                </ul>
+             </div>
+          </div>
+        </div>
+      `;
+    }
+  } catch (e) {
+    pc.innerHTML = `<div class="empty-state"><p>Erro ao carregar estoque: ${e.message}</p></div>`;
+  }
+}
+
+async function abrirModalNotaEntrada() {
+  itensNotaEntradaTemp = [];
+  const prods = window.estoqueProdutos || await API.get('/estoque');
+  
+  document.getElementById('modalTitulo').textContent = 'Registrar Nota Fiscal de Entrada';
+  document.getElementById('modalCorpo').innerHTML = `
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+      <div class="input-group"><label>Número da NF *</label><input id="nfNumero" placeholder="Ex: 10245"></div>
+      <div class="input-group"><label>Fornecedor *</label><input id="nfFornecedor" placeholder="Ex: Distribuidora Sol Ltda"></div>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+      <div class="input-group"><label>Data de Emissão *</label><input id="nfDataEmissao" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
+      <div class="input-group"><label>Valor Total (R$) *</label><input id="nfValorTotal" type="number" step="0.01" placeholder="0.00"></div>
+    </div>
+    <div class="input-group"><label>Observação</label><input id="nfObs" placeholder="Ex: Compra de mercadoria para revenda"></div>
+    
+    <hr style="margin:1rem 0; border:0; border-top:1px solid var(--border);">
+    <h4 style="margin-bottom:0.5rem;">Itens da Nota Fiscal</h4>
+    <div style="display:flex; gap:0.5rem; margin-bottom:1rem; align-items:flex-end;">
+      <div class="input-group" style="margin:0; flex:2;">
+        <label>Produto</label>
+        <select id="nfItemProdSelect">
+          <option value="">Selecione...</option>
+          ${prods.map(p => `<option value="${p.id}" data-nome="${p.nome}">${p.nome}</option>`).join('')}
+        </select>
+      </div>
+      <div class="input-group" style="margin:0; width:80px;">
+        <label>Qtd</label>
+        <input type="number" id="nfItemQtd" min="1" value="1">
+      </div>
+      <div class="input-group" style="margin:0; width:100px;">
+        <label>Custo Unit.</label>
+        <input type="number" id="nfItemCusto" min="0" step="0.01" placeholder="0.00">
+      </div>
+      <button class="btn btn-secondary" onclick="adicionarItemNotaEntrada()">Add</button>
+    </div>
+    <ul id="nfItensList" style="list-style:none; padding:0; margin:0; font-size:0.9rem; max-height:150px; overflow-y:auto;">
+      <li style="color:var(--text-muted);">Nenhum produto adicionado.</li>
+    </ul>
+  `;
+  document.getElementById('modalRodape').innerHTML = `
+    <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+    <button class="btn btn-primary" onclick="salvarNotaEntrada()">💾 Gravar Nota Fiscal</button>
+  `;
+  document.getElementById('modalGenerico').style.display = 'flex';
+}
+
+function adicionarItemNotaEntrada() {
+  const select = document.getElementById('nfItemProdSelect');
+  const qty = parseInt(document.getElementById('nfItemQtd').value);
+  const custo = parseFloat(document.getElementById('nfItemCusto').value);
+  if (!select.value || qty < 1 || isNaN(custo) || custo < 0) return;
+  
+  const id = parseInt(select.value);
+  const nome = select.options[select.selectedIndex].getAttribute('data-nome');
+  
+  const existente = itensNotaEntradaTemp.find(i => i.produto_id === id);
+  if (existente) {
+    existente.quantidade += qty;
+    existente.custo_unitario = custo;
+  } else {
+    itensNotaEntradaTemp.push({ produto_id: id, nome, quantidade: qty, custo_unitario: custo });
+  }
+  
+  const tot = itensNotaEntradaTemp.reduce((s, i) => s + (i.quantidade * i.custo_unitario), 0);
+  document.getElementById('nfValorTotal').value = tot.toFixed(2);
+
+  atualizarListaItensNotaEntrada();
+}
+
+function removerItemNotaEntrada(idx) {
+  itensNotaEntradaTemp.splice(idx, 1);
+  const tot = itensNotaEntradaTemp.reduce((s, i) => s + (i.quantidade * i.custo_unitario), 0);
+  document.getElementById('nfValorTotal').value = tot.toFixed(2);
+  atualizarListaItensNotaEntrada();
+}
+
+function atualizarListaItensNotaEntrada() {
+  const ul = document.getElementById('nfItensList');
+  if(!itensNotaEntradaTemp.length) {
+    ul.innerHTML = `<li style="color:var(--text-muted);">Nenhum produto adicionado.</li>`;
+    return;
+  }
+  ul.innerHTML = itensNotaEntradaTemp.map((c, i) => `
+    <li style="display:flex; justify-content:space-between; padding:0.5rem; background:var(--bg-tertiary); border-radius:4px; margin-bottom:0.25rem;">
+      <span>${c.quantidade}x <strong>${c.nome}</strong> (${fmt.brl(c.custo_unitario)}/un)</span>
+      <div style="display:flex; gap:1rem;">
+        <strong>Total: ${fmt.brl(c.quantidade * c.custo_unitario)}</strong>
+        <span style="cursor:pointer; color:var(--danger);" onclick="removerItemNotaEntrada(${i})">✕</span>
+      </div>
+    </li>
+  `).join('');
+}
+
+async function salvarNotaEntrada() {
+  const numero_nf = document.getElementById('nfNumero').value.trim();
+  const fornecedor = document.getElementById('nfFornecedor').value.trim();
+  const data_emissao = document.getElementById('nfDataEmissao').value;
+  const valor_total = parseFloat(document.getElementById('nfValorTotal').value);
+  const observacao = document.getElementById('nfObs').value.trim();
+  
+  if (!numero_nf || !fornecedor || !data_emissao || isNaN(valor_total) || !itensNotaEntradaTemp.length) {
+    showToast('Preencha os campos obrigatórios e adicione ao menos 1 item.', 'error');
+    return;
+  }
+  
+  const body = {
+    numero_nf, fornecedor, data_emissao, valor_total,
+    observacao, usuario_id: user.id, loja_id: user.loja_id || 1,
+    itens: itensNotaEntradaTemp
+  };
+  
+  try {
+    await API.post('/notas-entrada', body);
+    showToast('Nota fiscal registrada e Contas a Pagar gerado!', 'success');
+    fecharModal();
+    switchEstoqueTab('notas_entrada');
+  } catch(e) {
+    showToast(e.message, 'error');
+  }
 }
 
 async function abrirModalMovimento(tipo) {
@@ -940,56 +1173,241 @@ async function toggleCampanha(id, ativoAtual) {
 
 /* ════════════════════════════════════════
    FINANCEIRO / FLUXO DE CAIXA
-════════════════════════════════════════ */
+   Sub-abas: Visão Geral, Contas a Pagar, Contas a Receber, Caixas, DRE
+   ════════════════════════════════════════ */
+let finSubTabAtual = 'visao_geral';
+
 async function renderFinanceiro() {
-  document.getElementById('topbarActions').innerHTML = `<button class="btn btn-primary btn-sm" onclick="abrirModalDespesa()">+ Nova Despesa</button>`;
+  document.getElementById('topbarActions').innerHTML = `
+    <div style="display:flex; gap:0.5rem;">
+      <button class="btn btn-secondary btn-sm" onclick="switchFinanceiroTab('visao_geral')">📊 Visão Geral</button>
+      <button class="btn btn-secondary btn-sm" onclick="switchFinanceiroTab('contas_pagar')">💸 Contas a Pagar</button>
+      <button class="btn btn-secondary btn-sm" onclick="switchFinanceiroTab('contas_receber')">📥 Contas a Receber</button>
+      <button class="btn btn-secondary btn-sm" onclick="switchFinanceiroTab('caixas')">🏪 Caixas (PDV)</button>
+      <button class="btn btn-primary btn-sm" onclick="switchFinanceiroTab('dre')">📈 DRE</button>
+    </div>
+  `;
+  switchFinanceiroTab(finSubTabAtual);
+}
+
+async function switchFinanceiroTab(tab) {
+  finSubTabAtual = tab;
   const pc = document.getElementById('pageContent');
   pc.innerHTML = `<div class="empty-state"><span class="spinner" style="width:32px;height:32px;border-width:3px;"></span></div>`;
+  
+  document.querySelectorAll('#topbarActions button').forEach(btn => {
+     btn.classList.remove('btn-primary');
+     btn.classList.add('btn-secondary');
+  });
+  const btns = document.querySelectorAll('#topbarActions button');
+  if (tab === 'visao_geral' && btns[0]) btns[0].className = 'btn btn-primary btn-sm';
+  if (tab === 'contas_pagar' && btns[1]) btns[1].className = 'btn btn-primary btn-sm';
+  if (tab === 'contas_receber' && btns[2]) btns[2].className = 'btn btn-primary btn-sm';
+  if (tab === 'caixas' && btns[3]) btns[3].className = 'btn btn-primary btn-sm';
+  if (tab === 'dre' && btns[4]) btns[4].className = 'btn btn-primary btn-sm';
+
   try {
-    const [fluxo, despesas] = await Promise.all([
-      API.get('/financeiro/fluxo-caixa'),
-      API.get('/despesas')
-    ]);
-
-    const corSaldo = fluxo.saldo >= 0 ? 'var(--success)' : 'var(--danger)';
-
-    pc.innerHTML = `
-      <div class="dashboard-grid">
-        <div class="card stat-card">
-          <h3>Receitas (Mês)</h3>
-          <div class="stat-value" style="color:var(--success)">${fmt.brl(fluxo.receitas)}</div>
+    if (tab === 'visao_geral') {
+      const [fluxo, despesas] = await Promise.all([
+        API.get('/financeiro/fluxo-caixa'),
+        API.get('/despesas')
+      ]);
+      const corSaldo = fluxo.saldo >= 0 ? 'var(--success)' : 'var(--danger)';
+      pc.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+           <h3 style="margin:0;">Fluxo de Caixa (Mês Atual)</h3>
+           <button class="btn btn-primary btn-sm" onclick="abrirModalDespesa()">+ Lançar Despesa</button>
         </div>
-        <div class="card stat-card">
-          <h3>Despesas (Mês)</h3>
-          <div class="stat-value" style="color:var(--danger)">${fmt.brl(fluxo.despesas)}</div>
+        <div class="dashboard-grid">
+          <div class="card stat-card">
+            <h3>Receitas (Mês)</h3>
+            <div class="stat-value" style="color:var(--success)">${fmt.brl(fluxo.receitas)}</div>
+          </div>
+          <div class="card stat-card">
+            <h3>Despesas (Mês)</h3>
+            <div class="stat-value" style="color:var(--danger)">${fmt.brl(fluxo.despesas)}</div>
+          </div>
+          <div class="card stat-card">
+            <h3>Saldo Líquido</h3>
+            <div class="stat-value" style="color:${corSaldo}">${fmt.brl(fluxo.saldo)}</div>
+          </div>
         </div>
-        <div class="card stat-card">
-          <h3>Saldo Líquido</h3>
-          <div class="stat-value" style="color:${corSaldo}">${fmt.brl(fluxo.saldo)}</div>
+        <div class="card" style="margin-top:1.5rem;">
+          <h3 style="margin-bottom:1rem;">Histórico de Despesas</h3>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Ações</th></tr></thead>
+              <tbody>
+                ${despesas.length ? despesas.map(d => `
+                  <tr>
+                    <td>${new Date(d.data).toLocaleDateString()}</td>
+                    <td><strong>${d.descricao}</strong></td>
+                    <td><span class="badge badge-gray">${d.categoria}</span></td>
+                    <td style="color:var(--danger)">- ${fmt.brl(d.valor)}</td>
+                    <td>
+                      <button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="excluirDespesa(${d.id})" title="Excluir">🗑️</button>
+                    </td>
+                  </tr>`).join('') : '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted);">Nenhuma despesa lançada.</td></tr>'}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
-      <div class="card" style="margin-top:1.5rem;">
-        <h3 style="margin-bottom:1rem;">Histórico de Despesas</h3>
-        <div class="table-wrapper">
-          <table>
-            <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Ações</th></tr></thead>
-            <tbody>
-              ${despesas.length ? despesas.map(d => `
+      `;
+    } 
+    else if (tab === 'contas_pagar') {
+      const contas = await API.get('/contas-pagar');
+      pc.innerHTML = `
+        <div class="card">
+          <div class="card-header"><h3>Contas a Pagar</h3></div>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Descrição</th><th>Fornecedor</th><th>Valor</th><th>Vencimento</th><th>Status</th><th>Ações</th></tr></thead>
+              <tbody>
+                ${contas.length ? contas.map(c => `
+                  <tr>
+                    <td><strong>${c.descricao}</strong></td>
+                    <td>${c.fornecedor || '—'}</td>
+                    <td style="color:var(--danger); font-weight:600;">${fmt.brl(c.valor)}</td>
+                    <td>${fmt.date(c.data_vencimento)}</td>
+                    <td><span class="badge ${c.status === 'pago' ? 'badge-green' : 'badge-yellow'}">${c.status.toUpperCase()}</span></td>
+                    <td>
+                      ${c.status === 'pendente' ? `<button class="btn btn-success btn-xs" onclick="pagarConta(${c.id})">💰 Pagar</button>` : '—'}
+                    </td>
+                  </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">Nenhuma conta a pagar cadastrada.</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    } 
+    else if (tab === 'contas_receber') {
+      const contas = await API.get('/contas-receber');
+      pc.innerHTML = `
+        <div class="card">
+          <div class="card-header"><h3>Contas a Receber</h3></div>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Descrição</th><th>Cliente</th><th>Valor</th><th>Vencimento</th><th>Status</th><th>Ações</th></tr></thead>
+              <tbody>
+                ${contas.length ? contas.map(c => `
+                  <tr>
+                    <td><strong>${c.descricao}</strong></td>
+                    <td>${c.cliente_nome || '—'}</td>
+                    <td style="color:var(--success); font-weight:600;">${fmt.brl(c.valor)}</td>
+                    <td>${fmt.date(c.data_vencimento)}</td>
+                    <td><span class="badge ${c.status === 'recebido' ? 'badge-green' : 'badge-yellow'}">${c.status.toUpperCase()}</span></td>
+                    <td>
+                      ${c.status === 'pendente' ? `<button class="btn btn-primary btn-xs" onclick="receberConta(${c.id})">📥 Receber</button>` : '—'}
+                    </td>
+                  </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">Nenhuma conta a receber cadastrada.</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    } 
+    else if (tab === 'caixas') {
+      const caixas = await API.get('/caixas');
+      pc.innerHTML = `
+        <div class="card">
+          <div class="card-header"><h3>Histórico de Fechamento de Caixas</h3></div>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Operador</th><th>Abertura</th><th>Fechamento</th><th>Suprimento</th><th>Vendas</th><th>Sangrias</th><th>Quebra</th><th>Status</th></tr></thead>
+              <tbody>
+                ${caixas.length ? caixas.map(c => {
+                  const quebraVal = parseFloat(c.quebra || 0);
+                  const quebraStyle = quebraVal < 0 ? 'color:var(--danger);font-weight:700;' : quebraVal > 0 ? 'color:var(--success);font-weight:700;' : '';
+                  return `
+                    <tr>
+                      <td><strong>${c.usuario_nome}</strong></td>
+                      <td>${fmt.date(c.data_abertura)}</td>
+                      <td>${c.data_fechamento ? fmt.date(c.data_fechamento) : '—'}</td>
+                      <td>${fmt.brl(c.suprimento)}</td>
+                      <td>${fmt.brl(c.total_vendas)}</td>
+                      <td style="color:var(--danger)">-${fmt.brl(c.total_sangrias)}</td>
+                      <td style="${quebraStyle}">${quebraVal !== 0 ? fmt.brl(quebraVal) : 'R$ 0,00'}</td>
+                      <td><span class="badge ${c.status === 'aberto' ? 'badge-green' : 'badge-gray'}">${c.status.toUpperCase()}</span></td>
+                    </tr>`;
+                }).join('') : '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);">Nenhum caixa registrado.</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    } 
+    else if (tab === 'dre') {
+      const dre = await API.get('/financeiro/dre');
+      pc.innerHTML = `
+        <div class="card" style="max-width: 650px; margin: 0 auto;">
+          <div class="card-header" style="border-bottom: 2px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.5rem; text-align: center;">
+            <h3>📊 DRE — Demonstração do Resultado do Exercício</h3>
+            <span style="font-size:0.85rem; color:var(--text-secondary);">Mês Vigente (Acumulado)</span>
+          </div>
+          <div class="card-body">
+            <style>
+              .dre-table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+              .dre-table td { padding: 0.75rem; border-bottom: 1px solid var(--border); }
+              .dre-table tr.dre-subtotal { background: var(--bg-tertiary); font-weight: 600; }
+              .dre-table tr.dre-total { background: var(--primary-light); color: var(--text-primary); font-weight: 700; font-size: 1.05rem; border-top: 2px solid var(--primary); }
+            </style>
+            <table class="dre-table">
+              <tbody>
                 <tr>
-                  <td>${new Date(d.data).toLocaleDateString()}</td>
-                  <td><strong>${d.descricao}</strong></td>
-                  <td><span class="badge badge-gray">${d.categoria}</span></td>
-                  <td style="color:var(--danger)">- ${fmt.brl(d.valor)}</td>
-                  <td>
-                    <button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="excluirDespesa(${d.id})" title="Excluir">🗑️</button>
-                  </td>
-                </tr>`).join('') : '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted);">Nenhuma despesa lançada.</td></tr>'}
-            </tbody>
-          </table>
+                  <td>(+) Receita Operacional Bruta</td>
+                  <td style="text-align: right; color: var(--success); font-weight: 600;">${fmt.brl(dre.receitaBruta)}</td>
+                </tr>
+                <tr>
+                  <td>(-) Descontos Concedidos</td>
+                  <td style="text-align: right; color: var(--danger); font-weight: 600;">-${fmt.brl(dre.descontos)}</td>
+                </tr>
+                <tr class="dre-subtotal">
+                  <td>(=) Receita Operacional Líquida</td>
+                  <td style="text-align: right;">${fmt.brl(dre.receitaLiquida)}</td>
+                </tr>
+                <tr>
+                  <td>(-) Custo das Mercadorias Vendidas (CMV)</td>
+                  <td style="text-align: right; color: var(--danger); font-weight: 600;">-${fmt.brl(dre.cmv)}</td>
+                </tr>
+                <tr class="dre-subtotal" style="background: rgba(0,0,0,0.04);">
+                  <td>(=) Resultado Operacional Bruto (Lucro Bruto)</td>
+                  <td style="text-align: right; color: var(--success);">${fmt.brl(dre.lucroBruto)}</td>
+                </tr>
+                <tr>
+                  <td>(-) Despesas Operacionais</td>
+                  <td style="text-align: right; color: var(--danger); font-weight: 600;">-${fmt.brl(dre.despesasOperacionais)}</td>
+                </tr>
+                <tr class="dre-total">
+                  <td>(=) Resultado Líquido do Exercício (Lucro Líquido)</td>
+                  <td style="text-align: right; color: ${dre.lucroLiquido >= 0 ? 'var(--success)' : 'var(--danger)'};">${fmt.brl(dre.lucroLiquido)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
-    `;
-  } catch (e) { pc.innerHTML = `<div class="empty-state"><p>Erro ao carregar dados financeiros.</p></div>`; }
+      `;
+    }
+  } catch (e) {
+    pc.innerHTML = `<div class="empty-state"><p>Erro ao carregar dados financeiros: ${e.message}</p></div>`;
+  }
+}
+
+async function pagarConta(id) {
+  if (!confirm('Deseja realmente liquidar esta conta a pagar?')) return;
+  try {
+    await API.request('PUT', `/contas-pagar/${id}/pagar`);
+    showToast('Conta liquidada com sucesso!', 'success');
+    switchFinanceiroTab('contas_pagar');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function receberConta(id) {
+  if (!confirm('Deseja marcar esta conta como recebida?')) return;
+  try {
+    await API.request('PUT', `/contas-receber/${id}/receber`);
+    showToast('Conta recebida com sucesso!', 'success');
+    switchFinanceiroTab('contas_receber');
+  } catch (e) { showToast(e.message, 'error'); }
 }
 
 function abrirModalDespesa() {
@@ -1024,7 +1442,7 @@ async function salvarDespesa() {
   try {
     await API.post('/despesas', { descricao, categoria, valor, loja_id: user.loja_id });
     showToast('Despesa lançada!', 'success');
-    fecharModal(); renderFinanceiro();
+    fecharModal(); switchFinanceiroTab('visao_geral');
   } catch (e) { showToast(e.message, 'error'); }
 }
 
@@ -1033,7 +1451,7 @@ async function excluirDespesa(id) {
   try {
     await API.delete(`/despesas/${id}`);
     showToast('Despesa excluída!', 'success');
-    renderFinanceiro();
+    switchFinanceiroTab('visao_geral');
   } catch (e) { showToast(e.message, 'error'); }
 }
 
@@ -1292,39 +1710,124 @@ async function atualizarStatusEntrega(id, status) {
 /* ════════════════════════════════════════
    MENSAGERIA / CRM (FASE 3)
 ════════════════════════════════════════ */
+/* ════════════════════════════════════════
+   MENSAGERIA / CRM (FASE 3)
+   Sub-abas: Mensagens, Inadimplência, Métricas LTV
+   ════════════════════════════════════════ */
+let crmSubTabAtual = 'mensagens';
+
 async function renderMensageria() {
-  const pc = document.getElementById('pageContent');
-  pc.innerHTML = `
-    <div class="card" style="max-width:800px; margin:0 auto;">
-      <h3 style="margin-bottom:1rem;">Disparo de Mensagens</h3>
-      
-      <div class="input-group">
-        <label>Público Alvo</label>
-        <select id="msgPublico">
-          <option value="todos">Todos os Clientes Ativos</option>
-          <option value="ouro">Clientes VIPs (> 1000 Pontos)</option>
-          <option value="inativos">Clientes Inativos (30+ dias)</option>
-        </select>
-      </div>
-
-      <div class="input-group">
-        <label>Canal de Disparo</label>
-        <select id="msgCanal">
-          <option value="whatsapp">WhatsApp (Recomendado)</option>
-          <option value="email">E-mail</option>
-          <option value="sms">SMS</option>
-        </select>
-      </div>
-
-      <div class="input-group">
-        <label>Mensagem</label>
-        <textarea id="msgTexto" rows="5" placeholder="Olá {nome}, temos uma promoção especial para você..."></textarea>
-        <small style="color:var(--text-muted);">Use {nome} para personalizar a mensagem com o nome do cliente.</small>
-      </div>
-
-      <button class="btn btn-primary" onclick="dispararMensagem()" id="btnDisparo">🚀 Enviar Mensagens</button>
+  document.getElementById('topbarActions').innerHTML = `
+    <div style="display:flex; gap:0.5rem;">
+      <button class="btn btn-secondary btn-sm" onclick="switchCRMTab('mensagens')">💬 Disparo de Mensagens</button>
+      <button class="btn btn-secondary btn-sm" onclick="switchCRMTab('inadimplentes')">⚠️ Régua de Cobrança (Inadimplentes)</button>
+      <button class="btn btn-secondary btn-sm" onclick="switchCRMTab('ltv')">🏆 LTV e Ticket Médio</button>
     </div>
   `;
+  switchCRMTab(crmSubTabAtual);
+}
+
+async function switchCRMTab(tab) {
+  crmSubTabAtual = tab;
+  const pc = document.getElementById('pageContent');
+  pc.innerHTML = `<div class="empty-state"><span class="spinner" style="width:32px;height:32px;border-width:3px;"></span></div>`;
+  
+  document.querySelectorAll('#topbarActions button').forEach(btn => {
+     btn.classList.remove('btn-primary');
+     btn.classList.add('btn-secondary');
+  });
+  const btns = document.querySelectorAll('#topbarActions button');
+  if (tab === 'mensagens' && btns[0]) btns[0].className = 'btn btn-primary btn-sm';
+  if (tab === 'inadimplentes' && btns[1]) btns[1].className = 'btn btn-primary btn-sm';
+  if (tab === 'ltv' && btns[2]) btns[2].className = 'btn btn-primary btn-sm';
+
+  try {
+    if (tab === 'mensagens') {
+      pc.innerHTML = `
+        <div class="card" style="max-width:800px; margin:0 auto;">
+          <h3 style="margin-bottom:1rem;">Disparo de Mensagens</h3>
+          
+          <div class="input-group">
+            <label>Público Alvo</label>
+            <select id="msgPublico">
+              <option value="todos">Todos os Clientes Ativos</option>
+              <option value="ouro">Clientes VIPs (> 1000 Pontos)</option>
+              <option value="inativos">Clientes Inativos (30+ dias)</option>
+            </select>
+          </div>
+
+          <div class="input-group">
+            <label>Canal de Disparo</label>
+            <select id="msgCanal">
+              <option value="whatsapp">WhatsApp (Recomendado)</option>
+              <option value="email">E-mail</option>
+              <option value="sms">SMS</option>
+            </select>
+          </div>
+
+          <div class="input-group">
+            <label>Mensagem</label>
+            <textarea id="msgTexto" rows="5" placeholder="Olá {nome}, temos uma promoção especial para você..."></textarea>
+            <small style="color:var(--text-muted);">Use {nome} para personalizar a mensagem com o nome do cliente.</small>
+          </div>
+
+          <button class="btn btn-primary" onclick="dispararMensagem()" id="btnDisparo">🚀 Enviar Mensagens</button>
+        </div>
+      `;
+    } 
+    else if (tab === 'inadimplentes') {
+      const inad = await API.get('/crm/inadimplentes');
+      pc.innerHTML = `
+        <div class="card">
+          <div class="card-header"><h3>⚠️ Histórico de Inadimplência / Régua de Cobrança</h3></div>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Cliente</th><th>CPF/CNPJ</th><th>Dias Atraso</th><th>Fatura pendente</th><th>Data Vencimento</th><th>Valor</th><th>Ações</th></tr></thead>
+              <tbody>
+                ${inad.length ? inad.map(i => `
+                  <tr>
+                    <td><strong>${i.nome}</strong></td>
+                    <td><code>${i.cpf || '—'}</code></td>
+                    <td><span class="badge badge-red">${i.dias_atraso} dias</span></td>
+                    <td>${i.descricao}</td>
+                    <td>${fmt.date(i.data_vencimento)}</td>
+                    <td style="color:var(--danger); font-weight:600;">${fmt.brl(i.valor)}</td>
+                    <td>
+                      <button class="btn btn-success btn-xs" onclick="simularCobranca('${i.nome}', '${i.valor}', '${i.dias_atraso}')">💬 Cobrar WhatsApp</button>
+                    </td>
+                  </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted);">Nenhum cliente inadimplente no momento!</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    } 
+    else if (tab === 'ltv') {
+      const ltv = await API.get('/crm/ltv');
+      pc.innerHTML = `
+        <div class="card">
+          <div class="card-header"><h3>🏆 Ranking de LTV (Lifetime Value) &amp; Ticket Médio</h3></div>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>Ranking</th><th>Cliente</th><th>Compras Realizadas</th><th>Valor Total (LTV)</th><th>Ticket Médio</th></tr></thead>
+              <tbody>
+                ${ltv.map((c, idx) => `
+                  <tr>
+                    <td><strong>${idx + 1}º</strong></td>
+                    <td><strong>${c.nome}</strong></td>
+                    <td><span class="badge badge-gray">${c.total_compras} compras</span></td>
+                    <td style="color:var(--success); font-weight:600;">${fmt.brl(c.ltv_valor)}</td>
+                    <td style="color:var(--primary); font-weight:600;">${fmt.brl(c.ticket_medio)}</td>
+                  </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+  } catch (e) {
+    pc.innerHTML = `<div class="empty-state"><p>Erro ao carregar CRM: ${e.message}</p></div>`;
+  }
 }
 
 async function dispararMensagem() {
@@ -1339,8 +1842,8 @@ async function dispararMensagem() {
   btn.innerHTML = 'Enviando...';
 
   try {
-    const res = await API.post('/mensageria/disparo', { publico, canal, mensagem });
-    showToast(`Mensagem disparada para ${res.count} clientes!`, 'success');
+    const res = await API.post('/mensageria/disparo', { publico, canal, message: mensagem });
+    showToast(`Mensagem disparada para ${res.count} clientes com sucesso!`, 'success');
     document.getElementById('msgTexto').value = '';
   } catch (e) {
     showToast(e.message, 'error');
@@ -1348,6 +1851,12 @@ async function dispararMensagem() {
     btn.disabled = false;
     btn.innerHTML = '🚀 Enviar Mensagens';
   }
+}
+
+function simularCobranca(nome, valorStr, dias) {
+  const valor = fmt.brl(parseFloat(valorStr));
+  showToast(`Cobrança via WhatsApp enviada com sucesso para ${nome}!`, 'success');
+  alert(`[SIMULAÇÃO DISPARO WHATSAPP]\n\nPara: ${nome}\nMensagem: Prezado(a) ${nome}, identificamos que a fatura no valor de ${valor} está vencida há ${dias} dias. Favor entrar em contato para regularização.`);
 }
 
 /* ── Modal helpers ── */
