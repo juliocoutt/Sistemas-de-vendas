@@ -1,12 +1,13 @@
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
+require('dotenv').config();
+const { Pool } = require('pg');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const DB_PATH = path.join(__dirname, 'db', 'data.db');
-const SCHEMA_PATH = path.join(__dirname, 'db', 'schema.sql');
+const DATABASE_URL = process.env.DATABASE_URL;
+const pool = new Pool({ connectionString: DATABASE_URL });
 
 // Middlewares
 app.use(express.json());
@@ -15,11 +16,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 // ──────────────────────────────────────────────────────────────
 // Banco de dados
 // ──────────────────────────────────────────────────────────────
-const db = new sqlite3.Database(DB_PATH, (err) => {
-  if (err) { console.error('Erro ao abrir banco:', err.message); process.exit(1); }
-  console.log('✅ Banco SQLite conectado em', DB_PATH);
-  inicializarBanco();
-});
+pool.connect()
+  .then(() => console.log('✅ Conectado ao Supabase (PostgreSQL)'))
+  .catch(err => { console.error('Erro ao conectar ao banco:', err.message); process.exit(1); });
+inicializarBanco();
 
 function inicializarBanco() {
   const schema = fs.readFileSync(SCHEMA_PATH, 'utf-8');
@@ -43,47 +43,14 @@ function inicializarBanco() {
   });
 }
 
-function seedDadosIniciais() {
-  // Cria uma loja padrão se não existir
-  db.get('SELECT id FROM lojas LIMIT 1', (err, row) => {
-    if (!row) {
-      db.run(`INSERT INTO lojas (nome, cnpj, endereco, telefone, email) VALUES (?, ?, ?, ?, ?)`,
-        ['Loja Principal', '00.000.000/0001-00', 'Rua Principal, 100', '(11) 99999-9999', 'contato@loja.com']);
-    }
-  });
-
-  // Cria usuário admin padrão (senha: admin123)
-  db.get('SELECT id FROM usuarios LIMIT 1', (err, row) => {
-    if (!row) {
-      db.run(`INSERT INTO usuarios (nome, email, senha_hash, role, loja_id) VALUES (?, ?, ?, ?, ?)`,
-        ['Administrador', 'admin@loja.com', 'admin123', 'superadmin', 1]);
-    }
-  });
-
-  // Cria produtos de exemplo
-  db.get('SELECT id FROM produtos LIMIT 1', (err, row) => {
-    if (!row) {
-      const produtos = [
-        ['PROD-001', 'Camiseta Básica', 'Camiseta 100% algodão', 'Vestuário', 59.90, 25.00, 50],
-        ['PROD-002', 'Calça Jeans', 'Calça jeans slim fit', 'Vestuário', 149.90, 60.00, 30],
-        ['PROD-003', 'Tênis Esportivo', 'Tênis para corrida', 'Calçados', 249.90, 100.00, 20],
-        ['PROD-004', 'Boné Trucker', 'Boné estilo trucker', 'Acessórios', 49.90, 15.00, 45],
-        ['PROD-005', 'Mochila Urban', 'Mochila para uso diário', 'Acessórios', 199.90, 80.00, 15],
-      ];
-      produtos.forEach(p => {
-        db.run(`INSERT INTO produtos (sku, nome, descricao, categoria, preco_venda, custo, estoque_atual, ativo)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 1)`, p);
-      });
-    }
-  });
-}
+// Seed data is managed directly in Supabase. No local seeding required.
 
 // ──────────────────────────────────────────────────────────────
 // Helpers
 // ──────────────────────────────────────────────────────────────
-const asyncGet  = (sql, params = []) => new Promise((res, rej) => db.get(sql, params, (e, r) => e ? rej(e) : res(r)));
-const asyncAll  = (sql, params = []) => new Promise((res, rej) => db.all(sql, params, (e, r) => e ? rej(e) : res(r)));
-const asyncRun  = (sql, params = []) => new Promise((res, rej) => db.run(sql, params, function(e) { e ? rej(e) : res({ id: this.lastID, changes: this.changes }); }));
+const asyncGet = (sql, params = []) => pool.query(sql, params).then(r => r.rows[0]);
+const asyncAll = (sql, params = []) => pool.query(sql, params).then(r => r.rows);
+const asyncRun = (sql, params = []) => pool.query(sql, params).then(r => ({ changes: r.rowCount }));
 
 // ──────────────────────────────────────────────────────────────
 // ROTAS: Autenticação
