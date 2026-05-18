@@ -421,19 +421,20 @@ tbody td { padding: 1rem; color: var(--text-primary); }
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at 30% 30%, #033a27 0%, #011b12 100%);
-  padding: 1.5rem;
+  background: #00774a;
+  padding: 0;
+  margin: 0;
 }
 .login-container-card {
   display: flex;
-  width: 100%;
-  max-width: 960px;
-  height: 600px;
+  width: 100vw;
+  max-width: 100%;
+  height: 100vh;
   background: transparent;
-  border-radius: 32px;
+  border-radius: 0;
   overflow: hidden;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+  border: none;
 }
 .login-card-left {
   flex: 1.1;
