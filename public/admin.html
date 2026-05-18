@@ -42,101 +42,101 @@
   <!-- ── Sidebar ── -->
   <aside class="sidebar">
     <div class="sidebar-logo">
-      <span id="sidebarLogoText">🏪 VarejoOS</span>
+      <span id="sidebarLogoText" style="display:flex; align-items:center; gap:0.5rem;"><i data-lucide="store" style="width:22px; height:22px; color:var(--sidebar-active);"></i> VarejoOS</span>
       <small>Sistema de Varejo</small>
     </div>
     <nav class="sidebar-nav">
       <!-- ── Grupo: Painel Master 👑 (Somente Admin Master) ── -->
       <div id="grupo-master-section" class="sidebar-section" onclick="toggleSidebarGroup('grupo-master', this)" style="display:none; border-left: 4px solid var(--sidebar-active);">
-        <span>👑 Painel Master</span>
-        <span class="sidebar-section-arrow">▼</span>
+        <span style="display:flex; align-items:center; gap:0.5rem;"><i data-lucide="crown" style="width:14px; height:14px;"></i> Painel Master</span>
+        <i data-lucide="chevron-down" class="sidebar-section-arrow"></i>
       </div>
       <div id="grupo-master" class="sidebar-group-content" style="display:none;">
         <a class="nav-item" id="nav-master_dashboard" onclick="showPage('master_dashboard')">
-          <span class="icon">📊</span><span>Painel Master</span>
+          <i data-lucide="sliders" class="icon"></i><span>Painel Master</span>
         </a>
         <a class="nav-item" id="nav-master_lojas" onclick="showPage('master_lojas')">
-          <span class="icon">🏬</span><span>Clientes (Lojas)</span>
+          <i data-lucide="building-2" class="icon"></i><span>Clientes (Lojas)</span>
         </a>
       </div>
 
       <!-- ── Grupo: Visão Geral ── -->
       <div id="grupo-visao-geral-section" class="sidebar-section" onclick="toggleSidebarGroup('grupo-visao-geral', this)">
         <span>Visão Geral</span>
-        <span class="sidebar-section-arrow">▼</span>
+        <i data-lucide="chevron-down" class="sidebar-section-arrow"></i>
       </div>
       <div id="grupo-visao-geral" class="sidebar-group-content">
         <a class="nav-item" id="nav-dashboard" onclick="showPage('dashboard')">
-          <span class="icon">📊</span><span>Dashboard</span>
+          <i data-lucide="bar-chart-3" class="icon"></i><span>Dashboard</span>
         </a>
         <a class="nav-item" id="nav-financeiro" onclick="showPage('financeiro')">
-          <span class="icon">💵</span><span>Financeiro</span>
+          <i data-lucide="wallet" class="icon"></i><span>Financeiro</span>
         </a>
       </div>
 
       <!-- ── Grupo: Operação ── -->
       <div id="grupo-operacao-section" class="sidebar-section" onclick="toggleSidebarGroup('grupo-operacao', this)">
         <span>Operação</span>
-        <span class="sidebar-section-arrow">▼</span>
+        <i data-lucide="chevron-down" class="sidebar-section-arrow"></i>
       </div>
       <div id="grupo-operacao" class="sidebar-group-content">
         <a class="nav-item" id="nav-pdv" href="pdv.html">
-          <span class="icon">🛒</span><span>PDV</span>
+          <i data-lucide="shopping-cart" class="icon"></i><span>PDV</span>
         </a>
         <a class="nav-item" id="nav-vendas" onclick="showPage('vendas')">
-          <span class="icon">💰</span><span>Vendas</span>
+          <i data-lucide="receipt" class="icon"></i><span>Vendas</span>
         </a>
         <a class="nav-item" id="nav-comissoes" onclick="showPage('comissoes')">
-          <span class="icon">💸</span><span>Comissões</span>
+          <i data-lucide="percent" class="icon"></i><span>Comissões</span>
         </a>
         <a class="nav-item" id="nav-campanhas" onclick="showPage('campanhas')">
-          <span class="icon">🎟️</span><span>Campanhas</span>
+          <i data-lucide="megaphone" class="icon"></i><span>Campanhas</span>
         </a>
       </div>
 
       <!-- ── Grupo: Cadastros ── -->
       <div id="grupo-cadastros-section" class="sidebar-section" onclick="toggleSidebarGroup('grupo-cadastros', this)">
         <span>Cadastros</span>
-        <span class="sidebar-section-arrow">▼</span>
+        <i data-lucide="chevron-down" class="sidebar-section-arrow"></i>
       </div>
       <div id="grupo-cadastros" class="sidebar-group-content">
         <a class="nav-item" id="nav-produtos" onclick="showPage('produtos')">
-          <span class="icon">📦</span><span>Produtos</span>
+          <i data-lucide="package" class="icon"></i><span>Produtos</span>
         </a>
         <a class="nav-item" id="nav-kits" onclick="showPage('kits')">
-          <span class="icon">🎁</span><span>Kits</span>
+          <i data-lucide="boxes" class="icon"></i><span>Kits</span>
         </a>
         <a class="nav-item" id="nav-estoque" onclick="showPage('estoque')">
-          <span class="icon">🏭</span><span>Estoque</span>
+          <i data-lucide="warehouse" class="icon"></i><span>Estoque</span>
         </a>
         <a class="nav-item" id="nav-clientes" onclick="showPage('clientes')">
-          <span class="icon">👥</span><span>Clientes</span>
+          <i data-lucide="users" class="icon"></i><span>Clientes</span>
         </a>
         <a class="nav-item" id="nav-lojas" onclick="showPage('lojas')">
-          <span class="icon">🏪</span><span>Lojas</span>
+          <i data-lucide="store" class="icon"></i><span>Lojas</span>
         </a>
         <a class="nav-item" id="nav-vendedores" onclick="showPage('vendedores')">
-          <span class="icon">🧑‍💼</span><span>Vendedores</span>
+          <i data-lucide="user-check" class="icon"></i><span>Vendedores</span>
         </a>
         <a class="nav-item" id="nav-entregadores" onclick="showPage('entregadores')">
-          <span class="icon">🛵</span><span>Entregadores</span>
+          <i data-lucide="truck" class="icon"></i><span>Entregadores</span>
         </a>
       </div>
 
       <!-- ── Grupo: Logística & CRM ── -->
       <div id="grupo-logistica-crm-section" class="sidebar-section" onclick="toggleSidebarGroup('grupo-logistica-crm', this)">
         <span>Logística & CRM</span>
-        <span class="sidebar-section-arrow">▼</span>
+        <i data-lucide="chevron-down" class="sidebar-section-arrow"></i>
       </div>
       <div id="grupo-logistica-crm" class="sidebar-group-content">
         <a class="nav-item" id="nav-entregas" onclick="showPage('entregas')">
-          <span class="icon">📦</span><span>Entregas (Rotas)</span>
+          <i data-lucide="map-pin" class="icon"></i><span>Entregas (Rotas)</span>
         </a>
         <a class="nav-item" id="nav-mensageria" onclick="showPage('mensageria')">
-          <span class="icon">👥</span><span>CRM Inteligente</span>
+          <i data-lucide="message-square" class="icon"></i><span>CRM Inteligente</span>
         </a>
         <a class="nav-item" id="nav-configuracoes" onclick="showPage('configuracoes')" style="display:none;">
-          <span class="icon">⚙️</span><span>Configurações</span>
+          <i data-lucide="settings" class="icon"></i><span>Configurações</span>
         </a>
       </div>
     </nav>
@@ -187,6 +187,7 @@
 </div>
 
 <script src="js/api.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
 <script>
 /* ── Autenticação e Configuração de Nível de Acesso ── */
 if (!API.checkAuth()) { /* checkAuth redireciona */ }
@@ -198,6 +199,7 @@ if (user) {
   }
   
   aplicarRegrasAcessoRole(user.role);
+  setTimeout(() => { if (window.lucide) lucide.createIcons(); }, 100);
 }
 
 function aplicarRegrasAcessoRole(role) {
@@ -375,6 +377,8 @@ function showPage(name) {
     master_dashboard: renderMasterDashboard,
     master_lojas: renderMasterLojas
   })[name]?.();
+  
+  setTimeout(() => { if (window.lucide) lucide.createIcons(); }, 50);
 }
 showPage(user.role === 'superadmin' ? 'master_dashboard' : 'dashboard');
 
