@@ -170,7 +170,45 @@ tbody td { padding: 1rem; color: var(--text-primary); }
 .sidebar-logo small { color: rgba(255,255,255,0.7); font-size: .8rem; }
 
 .sidebar-nav { padding: 1rem 0; flex: 1; }
-.sidebar-section { padding: 1rem 1.5rem .5rem; font-size: .7rem; font-weight: 700; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: .05em; }
+.sidebar-section { 
+  padding: 0.8rem 1.5rem 0.5rem; 
+  font-size: .7rem; 
+  font-weight: 700; 
+  color: rgba(255,255,255,0.5); 
+  text-transform: uppercase; 
+  letter-spacing: .05em; 
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  transition: color var(--transition), background var(--transition);
+  border-radius: var(--radius-sm);
+  margin: 0.2rem 0.5rem;
+}
+.sidebar-section:hover {
+  background: rgba(255,255,255,0.05);
+  color: #ffffff;
+}
+.sidebar-section-arrow {
+  font-size: 0.6rem;
+  transition: transform 0.25s ease;
+  opacity: 0.7;
+}
+.sidebar-section.collapsed .sidebar-section-arrow {
+  transform: rotate(-90deg);
+}
+.sidebar-group-content {
+  overflow: hidden;
+  max-height: 500px; /* Altura máxima padrão */
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
+  opacity: 1;
+}
+.sidebar-group-content.collapsed {
+  max-height: 0 !important;
+  opacity: 0;
+  pointer-events: none;
+}
 .nav-item {
   display: flex; align-items: center; gap: 1rem;
   padding: .75rem 1.5rem;

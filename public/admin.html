@@ -46,58 +46,85 @@
       <small>Sistema de Varejo</small>
     </div>
     <nav class="sidebar-nav">
-      <div class="sidebar-section">Visão Geral</div>
-      <a class="nav-item" id="nav-dashboard" onclick="showPage('dashboard')">
-        <span class="icon">📊</span><span>Dashboard</span>
-      </a>
-      <a class="nav-item" id="nav-financeiro" onclick="showPage('financeiro')">
-        <span class="icon">💵</span><span>Financeiro</span>
-      </a>
-      <div class="sidebar-section">Operação</div>
-      <a class="nav-item" id="nav-pdv" href="pdv.html">
-        <span class="icon">🛒</span><span>PDV</span>
-      </a>
-      <a class="nav-item" id="nav-vendas" onclick="showPage('vendas')">
-        <span class="icon">💰</span><span>Vendas</span>
-      </a>
-      <a class="nav-item" id="nav-comissoes" onclick="showPage('comissoes')">
-        <span class="icon">💸</span><span>Comissões</span>
-      </a>
-      <a class="nav-item" id="nav-campanhas" onclick="showPage('campanhas')">
-        <span class="icon">🎟️</span><span>Campanhas</span>
-      </a>
-      <div class="sidebar-section">Cadastros</div>
-      <a class="nav-item" id="nav-produtos" onclick="showPage('produtos')">
-        <span class="icon">📦</span><span>Produtos</span>
-      </a>
-      <a class="nav-item" id="nav-kits" onclick="showPage('kits')">
-        <span class="icon">🎁</span><span>Kits</span>
-      </a>
-      <a class="nav-item" id="nav-estoque" onclick="showPage('estoque')">
-        <span class="icon">🏭</span><span>Estoque</span>
-      </a>
-      <a class="nav-item" id="nav-clientes" onclick="showPage('clientes')">
-        <span class="icon">👥</span><span>Clientes</span>
-      </a>
-      <a class="nav-item" id="nav-lojas" onclick="showPage('lojas')">
-        <span class="icon">🏪</span><span>Lojas</span>
-      </a>
-      <a class="nav-item" id="nav-vendedores" onclick="showPage('vendedores')">
-        <span class="icon">🧑‍💼</span><span>Vendedores</span>
-      </a>
-      <a class="nav-item" id="nav-entregadores" onclick="showPage('entregadores')">
-        <span class="icon">🛵</span><span>Entregadores</span>
-      </a>
-      <div class="sidebar-section">Logística & CRM</div>
-      <a class="nav-item" id="nav-entregas" onclick="showPage('entregas')">
-        <span class="icon">📦</span><span>Entregas (Rotas)</span>
-      </a>
-      <a class="nav-item" id="nav-mensageria" onclick="showPage('mensageria')">
-        <span class="icon">👥</span><span>CRM Inteligente</span>
-      </a>
-      <a class="nav-item" id="nav-configuracoes" onclick="showPage('configuracoes')" style="display:none;">
-        <span class="icon">⚙️</span><span>Configurações</span>
-      </a>
+      <!-- ── Grupo: Visão Geral ── -->
+      <div class="sidebar-section" onclick="toggleSidebarGroup('grupo-visao-geral', this)">
+        <span>Visão Geral</span>
+        <span class="sidebar-section-arrow">▼</span>
+      </div>
+      <div id="grupo-visao-geral" class="sidebar-group-content">
+        <a class="nav-item" id="nav-dashboard" onclick="showPage('dashboard')">
+          <span class="icon">📊</span><span>Dashboard</span>
+        </a>
+        <a class="nav-item" id="nav-financeiro" onclick="showPage('financeiro')">
+          <span class="icon">💵</span><span>Financeiro</span>
+        </a>
+      </div>
+
+      <!-- ── Grupo: Operação ── -->
+      <div class="sidebar-section" onclick="toggleSidebarGroup('grupo-operacao', this)">
+        <span>Operação</span>
+        <span class="sidebar-section-arrow">▼</span>
+      </div>
+      <div id="grupo-operacao" class="sidebar-group-content">
+        <a class="nav-item" id="nav-pdv" href="pdv.html">
+          <span class="icon">🛒</span><span>PDV</span>
+        </a>
+        <a class="nav-item" id="nav-vendas" onclick="showPage('vendas')">
+          <span class="icon">💰</span><span>Vendas</span>
+        </a>
+        <a class="nav-item" id="nav-comissoes" onclick="showPage('comissoes')">
+          <span class="icon">💸</span><span>Comissões</span>
+        </a>
+        <a class="nav-item" id="nav-campanhas" onclick="showPage('campanhas')">
+          <span class="icon">🎟️</span><span>Campanhas</span>
+        </a>
+      </div>
+
+      <!-- ── Grupo: Cadastros ── -->
+      <div class="sidebar-section" onclick="toggleSidebarGroup('grupo-cadastros', this)">
+        <span>Cadastros</span>
+        <span class="sidebar-section-arrow">▼</span>
+      </div>
+      <div id="grupo-cadastros" class="sidebar-group-content">
+        <a class="nav-item" id="nav-produtos" onclick="showPage('produtos')">
+          <span class="icon">📦</span><span>Produtos</span>
+        </a>
+        <a class="nav-item" id="nav-kits" onclick="showPage('kits')">
+          <span class="icon">🎁</span><span>Kits</span>
+        </a>
+        <a class="nav-item" id="nav-estoque" onclick="showPage('estoque')">
+          <span class="icon">🏭</span><span>Estoque</span>
+        </a>
+        <a class="nav-item" id="nav-clientes" onclick="showPage('clientes')">
+          <span class="icon">👥</span><span>Clientes</span>
+        </a>
+        <a class="nav-item" id="nav-lojas" onclick="showPage('lojas')">
+          <span class="icon">🏪</span><span>Lojas</span>
+        </a>
+        <a class="nav-item" id="nav-vendedores" onclick="showPage('vendedores')">
+          <span class="icon">🧑‍💼</span><span>Vendedores</span>
+        </a>
+        <a class="nav-item" id="nav-entregadores" onclick="showPage('entregadores')">
+          <span class="icon">🛵</span><span>Entregadores</span>
+        </a>
+      </div>
+
+      <!-- ── Grupo: Logística & CRM ── -->
+      <div class="sidebar-section" onclick="toggleSidebarGroup('grupo-logistica-crm', this)">
+        <span>Logística & CRM</span>
+        <span class="sidebar-section-arrow">▼</span>
+      </div>
+      <div id="grupo-logistica-crm" class="sidebar-group-content">
+        <a class="nav-item" id="nav-entregas" onclick="showPage('entregas')">
+          <span class="icon">📦</span><span>Entregas (Rotas)</span>
+        </a>
+        <a class="nav-item" id="nav-mensageria" onclick="showPage('mensageria')">
+          <span class="icon">👥</span><span>CRM Inteligente</span>
+        </a>
+        <a class="nav-item" id="nav-configuracoes" onclick="showPage('configuracoes')" style="display:none;">
+          <span class="icon">⚙️</span><span>Configurações</span>
+        </a>
+      </div>
     </nav>
     <div class="sidebar-footer">
       <div id="sidebarUserBox" style="display:flex; align-items:center; gap:0.5rem; margin-bottom: 0.8rem; cursor:pointer; padding:0.5rem; border-radius:4px; transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='transparent'" onclick="showPage('perfil')">
@@ -201,6 +228,35 @@ API.get('/configuracoes').then(config => {
     }
   }
 }).catch(err => console.error('Erro ao carregar configurações dinâmicas:', err));
+
+/* ── Controle de Grupos Colapsáveis da Sidebar ── */
+function toggleSidebarGroup(groupId, headerEl) {
+  const content = document.getElementById(groupId);
+  if (!content) return;
+  
+  const isCollapsed = content.classList.toggle('collapsed');
+  headerEl.classList.toggle('collapsed', isCollapsed);
+  
+  // Salva a preferência no navegador do usuário para manter o estado ao atualizar a página!
+  localStorage.setItem(`sidebar-${groupId}`, isCollapsed ? 'collapsed' : 'expanded');
+}
+
+// Ao carregar a página, restaura o estado de abertura/fechamento de cada grupo
+document.addEventListener('DOMContentLoaded', () => {
+  ['grupo-visao-geral', 'grupo-operacao', 'grupo-cadastros', 'grupo-logistica-crm'].forEach(id => {
+    const content = document.getElementById(id);
+    if (!content) return;
+    
+    const savedState = localStorage.getItem(`sidebar-${id}`);
+    const header = content.previousElementSibling;
+    
+    // Se o usuário fechou da última vez, mantemos fechado. Caso contrário, começa aberto.
+    if (savedState === 'collapsed') {
+      content.classList.add('collapsed');
+      header?.classList.add('collapsed');
+    }
+  });
+});
 
 /* ── Navegação ── */
 const pages = ['dashboard','financeiro','vendas','produtos','kits','estoque','clientes','lojas','vendedores','comissoes','campanhas','entregadores','entregas','mensageria', 'configuracoes'];
