@@ -189,7 +189,10 @@ app.get('/api/produtos', async (req, res) => {
     if (q) { sql += ` AND (nome ILIKE $${i} OR sku ILIKE $${i} OR categoria ILIKE $${i})`; params.push(`%${q}%`); i++; }
     sql += ' ORDER BY nome';
     res.json(await asyncAll(sql, params));
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    console.error('Erro em GET /api/produtos:', e);
+    res.status(500).json({ error: e.message || String(e) });
+  }
 });
 
 app.get('/api/produtos/:id', async (req, res) => {
