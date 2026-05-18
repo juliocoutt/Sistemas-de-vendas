@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VarejoOS — PDV</title>
+  <meta name="description" content="Ponto de Venda — registre vendas rapidamente com scanner de produtos.">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    body { overflow: hidden; background: var(--bg-base); }
+    .pdv-page { display: flex; flex-direction: column; height: 100vh; }
+    .pdv-topbar {
+      background: var(--bg-surface); border-bottom: 1px solid var(--border);
+      padding: 1rem 1.5rem; display: flex; align-items: center; gap: 1rem;
+      box-shadow: var(--shadow-sm); z-index: 10;
+    }
+    .pdv-topbar h1 { font-size: 1.25rem; font-weight: 700; flex: 1; color: var(--text-primary); }
+    .pdv-body { flex: 1; display: grid; grid-template-columns: 1fr 420px; gap: 0; overflow: hidden; }
+    .pdv-left-inner { display: flex; flex-direction: column; gap: 1.5rem; padding: 1.5rem; overflow: hidden; }
+    .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; overflow-y: auto; flex: 1; padding-bottom: 2rem; }
+    .cart-panel { border-left: 1px solid var(--border); background: var(--bg-surface); display: flex; flex-direction: column; height: 100%; box-shadow: -4px 0 24px rgba(0,0,0,0.03); }
+    @media (max-width: 700px) {
+      .pdv-body { grid-template-columns: 1fr; }
+      .cart-panel { border-left: none; border-top: 1px solid var(--border); height: 50vh; }
+    }
+  </style>
+</head>
+<body>
+<div class="pdv-page">
+
+  <!-- Topbar do PDV -->
+  <div class="pdv-topbar">
+    <h1>🛒 PDV — Ponto de Venda</h1>
+    <div style="display:flex; align-items:center; gap:0.5rem; margin-right:1rem;">
+      <span style="font-size:0.8rem; font-weight:600; color:var(--text-secondary);">Vendedor:</span>
+      <select id="pdvVendedorSelect" style="padding:0.4rem; font-size:0.85rem; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--bg-card); color:var(--text-primary); min-width:140px; outline:none;"></select>
+    </div>
+    <span id="pdvVendedor" class="badge badge-blue" style="display:none;"></span>
+    <button class="btn btn-secondary btn-sm" onclick="location.href='admin.html'">⬅ Admin</button>
+    <button class="btn btn-ghost btn-sm" onclick="API.logout()">Sair</button>
+  </div>
+
+  <div class="pdv-body">
+
+    <!-- ── Coluna Esquerda: Produtos ── -->
+    <div class="pdv-left-inner">
+      <div class="product-search">
+        <input id="searchInput" type="text" placeholder="🔍 Buscar produto por nome, SKU ou categoria..." oninput="filtrarProdutos(this.value)">
+        <div class="filter-bar" id="filterCats" style="margin-bottom:0;flex-wrap:nowrap;overflow-x:auto;"></div>
+      </div>
+      <div class="products-grid" id="productsGrid">
+        <div class="empty-state"><div class="es-icon">⏳</div><p>Carregando produtos...</p></div>
+      </div>
+    </div>
+
+    <!-- ── Coluna Direita: Carrinho ── -->
+    <div class="cart-panel">
+      <div class="cart-header">
+        <h3>🧺 Carrinho</h3>
+        <button class="btn btn-ghost btn-sm" onclick="limparCarrinho()">Limpar</button>
+      </div>
+
+      <div class="cart-items" id="cartItems">
+        <div class="empty-state" id="cartEmpty">
+          <div class="es-icon">🛒</div>
+          <p>Nenhum item ainda</p>
+        </div>
+      </div>
+
+      <div class="cart-footer">
+        <div class="cart-cupom" style="display:flex;gap:0.5rem;margin-bottom:1rem;">
+          <input id="cupomInput" type="text" placeholder="Cupom de desconto" style="text-transform:uppercase;flex:1;">
+          <button class="btn btn-secondary btn-sm" onclick="aplicarCupom()">Aplicar</button>
+        </div>
+
+        <div class="cart-total" style="margin-bottom:0.25rem;">
+          <span style="font-size:.9rem;color:var(--text-secondary)">Subtotal</span>
+          <strong id="cartSubtotal" style="font-size:1rem;color:var(--text-secondary)">R$ 0,00</strong>
+        </div>
+        <div class="cart-total" id="cupomRow" style="display:none;color:var(--success);margin-bottom:0.5rem;">
+          <span id="cupomLabel" style="font-size:.9rem;">Desconto</span>
+          <strong id="cartDesconto" style="font-size:1rem;">- R$ 0,00</strong>
+        </div>
+        <div class="cart-total" style="border-top:1px solid var(--border);padding-top:0.5rem;">
+          <span>Total</span>
+          <strong id="cartTotal">R$ 0,00</strong>
+        </div>
+
+        <div style="margin-bottom:.75rem; border-top:1px solid var(--border); padding-top:.75rem;">
+          <label style="display:block;margin-bottom:0.25rem;font-size:0.85rem;color:var(--text-secondary);">Cliente (Fidelidade / Entrega)</label>
+          <select id="pdvClienteSelect" style="width:100%;padding:0.4rem; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--bg-card); color:var(--text-primary);" onchange="aoSelecionarCliente()">
+            <option value="">Consumidor não identificado</option>
+          </select>
+          <div id="pontosContainer" style="display:none;margin-top:.5rem;padding:.5rem;background:var(--bg-tertiary);border-radius:4px;font-size:.85rem;align-items:center;justify-content:space-between;">
+            <span>Pontos: <strong id="clientePontosSaldo" style="color:var(--primary);">0</strong></span>
+            <button id="btnUsarPontos" class="btn btn-secondary btn-sm" style="padding:.15rem .4rem;" onclick="usarPontos()">Resgatar</button>
+          </div>
+        </div>
+
+        <div style="margin-bottom:.75rem; border-top:1px solid var(--border); padding-top:.75rem;">
+          <div style="display:flex; align-items:center; gap:.5rem;">
+            <input type="checkbox" id="pdvDelivery" onchange="toggleDelivery()">
+            <label for="pdvDelivery" style="font-size:0.85rem;font-weight:600;cursor:pointer;">Pedido para Entrega (Delivery)</label>
+          </div>
+          <div id="deliveryContainer" style="display:none; margin-top:.5rem; flex-direction:column; gap:.5rem;">
+            <input type="text" id="pdvEndEntrega" placeholder="Endereço de entrega..." style="padding:0.4rem; border-radius:var(--radius-sm); border:1px solid var(--border); width:100%;">
+            <div class="input-group" style="margin:0;">
+              <label>Taxa de Entrega (R$)</label>
+              <input type="number" id="pdvTaxaEntrega" min="0" step="0.01" value="0.00" oninput="renderizarCarrinho()" style="padding:0.4rem; border-radius:var(--radius-sm); border:1px solid var(--border);">
+            </div>
+          </div>
+        </div>
+
+        <div class="payment-tabs" id="paymentTabs">
+          <div class="pay-tab active" onclick="selectPag('dinheiro', this)">💵 Dinheiro</div>
+          <div class="pay-tab" onclick="selectPag('pix', this)">🔷 PIX</div>
+          <div class="pay-tab" onclick="selectPag('credito', this)">💳 Crédito</div>
+          <div class="pay-tab" onclick="selectPag('debito', this)">💳 Débito</div>
+        </div>
+
+        <div id="trocoSection" style="margin-bottom:.75rem; display:none;">
+          <div class="input-group">
+            <label>Valor recebido (R$)</label>
+            <input id="valorRecebido" type="number" min="0" step="0.01" placeholder="0,00" oninput="calcTroco()">
+          </div>
+          <p id="trocoInfo" style="font-size:.85rem;margin-top:.5rem;color:var(--success);font-weight:600;"></p>
+        </div>
+
+        <button class="btn btn-success btn-lg btn-block" id="btnFinalizar" onclick="finalizarVenda()" disabled>
+          ✅ Finalizar Venda
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de sucesso -->
+<div id="modalSucesso" class="modal-backdrop" style="display:none;">
+  <div class="modal" style="width:min(360px,95vw);text-align:center;">
+    <div class="modal-body" style="align-items:center;gap:1.25rem;padding:2rem;">
+      <div style="font-size:3.5rem;animation:fadeSlideUp .4s ease;">✅</div>
+      <h2>Venda Concluída!</h2>
+      <p id="sucessoInfo" style="color:var(--text-secondary);font-size:.9rem;"></p>
+      <button class="btn btn-primary btn-block" onclick="novaVenda()">Nova Venda</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/pdv.js"></script>
+</body>
+</html>

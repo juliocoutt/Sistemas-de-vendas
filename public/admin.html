@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VarejoOS — Painel Administrativo</title>
+  <meta name="description" content="Painel administrativo do Sistema de Varejo — lojas, produtos, estoque, clientes e vendas.">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="layout">
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span>🏪 VarejoOS</span>
+      <small>Sistema de Varejo</small>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-section">Visão Geral</div>
+      <a class="nav-item" id="nav-dashboard" onclick="showPage('dashboard')">
+        <span class="icon">📊</span><span>Dashboard</span>
+      </a>
+      <a class="nav-item" id="nav-financeiro" onclick="showPage('financeiro')">
+        <span class="icon">💵</span><span>Financeiro</span>
+      </a>
+      <div class="sidebar-section">Operação</div>
+      <a class="nav-item" id="nav-pdv" href="pdv.html">
+        <span class="icon">🛒</span><span>PDV</span>
+      </a>
+      <a class="nav-item" id="nav-vendas" onclick="showPage('vendas')">
+        <span class="icon">💰</span><span>Vendas</span>
+      </a>
+      <a class="nav-item" id="nav-comissoes" onclick="showPage('comissoes')">
+        <span class="icon">💸</span><span>Comissões</span>
+      </a>
+      <a class="nav-item" id="nav-campanhas" onclick="showPage('campanhas')">
+        <span class="icon">🎟️</span><span>Campanhas</span>
+      </a>
+      <div class="sidebar-section">Cadastros</div>
+      <a class="nav-item" id="nav-produtos" onclick="showPage('produtos')">
+        <span class="icon">📦</span><span>Produtos</span>
+      </a>
+      <a class="nav-item" id="nav-kits" onclick="showPage('kits')">
+        <span class="icon">🎁</span><span>Kits</span>
+      </a>
+      <a class="nav-item" id="nav-estoque" onclick="showPage('estoque')">
+        <span class="icon">🏭</span><span>Estoque</span>
+      </a>
+      <a class="nav-item" id="nav-clientes" onclick="showPage('clientes')">
+        <span class="icon">👥</span><span>Clientes</span>
+      </a>
+      <a class="nav-item" id="nav-lojas" onclick="showPage('lojas')">
+        <span class="icon">🏪</span><span>Lojas</span>
+      </a>
+      <a class="nav-item" id="nav-vendedores" onclick="showPage('vendedores')">
+        <span class="icon">🧑‍💼</span><span>Vendedores</span>
+      </a>
+      <a class="nav-item" id="nav-entregadores" onclick="showPage('entregadores')">
+        <span class="icon">🛵</span><span>Entregadores</span>
+      </a>
+      <div class="sidebar-section">Logística & CRM</div>
+      <a class="nav-item" id="nav-entregas" onclick="showPage('entregas')">
+        <span class="icon">📦</span><span>Entregas (Rotas)</span>
+      </a>
+      <a class="nav-item" id="nav-mensageria" onclick="showPage('mensageria')">
+        <span class="icon">💬</span><span>Mensageria</span>
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <span id="sidebarUser"></span><br>
+      <a href="#" onclick="API.logout()">Sair</a>
+    </div>
+  </aside>
+
+  <!-- ── Main ── -->
+  <div class="main-content">
+    <div class="topbar">
+      <span class="topbar-title" id="topbarTitle">Dashboard</span>
+      <div class="topbar-actions" id="topbarActions"></div>
+    </div>
+
+    <div class="page-content" id="pageContent">
+      <!-- conteúdo dinâmico -->
+    </div>
+  </div>
+</div>
+
+<!-- ── Modal Genérico ── -->
+<div id="modalGenerico" class="modal-backdrop" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitulo">Título</h3>
+      <button class="modal-close" onclick="fecharModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalCorpo"></div>
+    <div class="modal-footer" id="modalRodape"></div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+/* ── Autenticação ── */
+if (!API.checkAuth()) { /* checkAuth redireciona */ }
+const user = API.getUsuario();
+document.getElementById('sidebarUser').textContent = `👤 ${user.nome}`;
+
+/* ── Navegação ── */
+const pages = ['dashboard','financeiro','vendas','produtos','kits','estoque','clientes','lojas','vendedores','comissoes','campanhas','entregadores','entregas','mensageria'];
+function showPage(name) {
+  pages.forEach(p => document.getElementById(`nav-${p}`)?.classList.remove('active'));
+  document.getElementById(`nav-${name}`)?.classList.add('active');
+  document.getElementById('topbarActions').innerHTML = '';
+  const map = { dashboard:'Dashboard', financeiro:'Fluxo de Caixa', vendas:'Vendas', produtos:'Produtos', kits:'Kits e Combos', estoque:'Estoque', clientes:'Clientes', lojas:'Lojas', vendedores:'Vendedores', comissoes:'Comissões', campanhas:'Campanhas Promocionais', entregadores:'Entregadores', entregas:'Painel de Entregas', mensageria:'CRM / Mensageria' };
+  document.getElementById('topbarTitle').textContent = map[name] || name;
+  const pc = document.getElementById('pageContent');
+  pc.style.opacity = '0';
+  setTimeout(() => { pc.style.transition = 'opacity .3s'; pc.style.opacity = '1'; }, 10);
+  ({ dashboard: renderDashboard, financeiro: renderFinanceiro, vendas: renderVendas, produtos: renderProdutos, kits: renderKits, estoque: renderEstoque, clientes: renderClientes, lojas: renderLojas, vendedores: renderVendedores, comissoes: renderComissoes, campanhas: renderCampanhas, entregadores: renderEntregadores, entregas: renderEntregas, mensageria: renderMensageria })[name]?.();
+}
+showPage('dashboard');
+
+/* ════════════════════════════════════════
+   DASHBOARD
+════════════════════════════════════════ */
+async function renderDashboard() {
+  const pc = document.getElementById('pageContent');
+  pc.innerHTML = `<div class="empty-state"><span class="spinner" style="width:32px;height:32px;border-width:3px;"></span></div>`;
+  try {
+    const d = await API.get('/dashboard');
+    pc.innerHTML = `
+      <div class="kpi-grid">
+        <div class="kpi-card" style="animation-delay:.0s"><div class="kpi-icon">💰</div><div class="kpi-label">Faturamento do Mês</div><div class="kpi-value">${fmt.brl(d.totalMes)}</div></div>
+        <div class="kpi-card" style="animation-delay:.05s"><div class="kpi-icon">📅</div><div class="kpi-label">Faturamento Hoje</div><div class="kpi-value">${fmt.brl(d.totalDia)}</div></div>
+        <div class="kpi-card" style="animation-delay:.1s"><div class="kpi-icon">🧾</div><div class="kpi-label">Vendas no Mês</div><div class="kpi-value">${d.qtdVendas}</div></div>
+        <div class="kpi-card" style="animation-delay:.15s"><div class="kpi-icon">👥</div><div class="kpi-label">Clientes Cadastrados</div><div class="kpi-value">${d.totalClientes}</div></div>
+        <div class="kpi-card" style="animation-delay:.2s"><div class="kpi-icon">📦</div><div class="kpi-label">Produtos Ativos</div><div class="kpi-value">${d.totalProdutos}</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:1rem;">
+        <div class="card">
+          <div class="card-header"><h3>🏆 Mais Vendidos</h3></div>
+          <div class="card-body">
+            ${d.topProdutos.length ? `<table><thead><tr><th>#</th><th>Produto</th><th>Qtd</th></tr></thead><tbody>
+              ${d.topProdutos.map((p, i) => `<tr><td><strong>${i + 1}</strong></td><td>${p.nome}</td><td><span class="badge badge-blue">${p.total_vendido}</span></td></tr>`).join('')}
+            </tbody></table>` : '<div class="empty-state"><p>Nenhuma venda ainda.</p></div>'}
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>⚠️ Estoque Crítico</h3></div>
+          <div class="card-body">
+            ${d.estoqueMin.length ? `<table><thead><tr><th>Produto</th><th>Qtd</th></tr></thead><tbody>
+              ${d.estoqueMin.map(p => `<tr><td>${p.nome}</td><td><span class="badge badge-red">${p.estoque_atual}</span></td></tr>`).join('')}
+            </tbody></table>` : '<div class="empty-state"><p>Estoque em dia! ✅</p></div>'}
+          </div>
+        </div>
+      </div>`;
+  } catch (e) { pc.innerHTML = `<div class="empty-state"><p>Erro ao carregar dashboard.</p></div>`; }
+}
+
+/* ════════════════════════════════════════
+   VENDAS
+════════════════════════════════════════ */
+async function renderVendas() {
+  const pc = document.getElementById('pageContent');
+  pc.innerHTML = `<div class="empty-state"><span class="spinner" style="width:32px;height:32px;border-width:3px;"></span></div>`;
+  try {
+    const vendas = await API.get('/vendas');
+    pc.innerHTML = `
+      <div class="card">
+        <div class="card-header"><h3>Histórico de Vendas</h3></div>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>#</th><th>Data</th><th>Loja</th><th>Vendedor</th><th>Forma Pgto</th><th>Total</th><th>Ações</th></tr></thead>
+            <tbody>
+              ${vendas.length ? vendas.map(v => `
+                <tr>
+                  <td><strong>#${v.id}</strong></td>
+                  <td>${fmt.date(v.data)}</td>
+                  <td>${v.loja_nome}</td>
+                  <td>${v.vendedor_nome || '—'}</td>
+                  <td><span class="badge badge-gray">${v.forma_pagamento}</span></td>
+                  <td><strong>${fmt.brl(v.total)}</strong></td>
+                  <td><button class="btn btn-secondary btn-sm" onclick="imprimirRecibo(${v.id})">🧾 Emitir NFC-e</button></td>
+                </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted);">Nenhuma venda registrada.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  } catch (e) { pc.innerHTML = `<div class="empty-state"><p>Erro ao carregar vendas.</p></div>`; }
+}
+
+async function imprimirRecibo(vendaId) {
+  try {
+    const v = await API.get(`/vendas/${vendaId}`);
+    
+    // Simulação visual de Cupom Não-Fiscal / NFC-e
+    let cupomHTML = `
+      <div style="width:300px; padding:1rem; background:#fff; color:#000; font-family:'Courier New', monospace; font-size:.85rem; border:1px dashed #ccc; margin:0 auto;">
+        <div style="text-align:center; margin-bottom:1rem;">
+          <h3 style="margin:0;">VAREJO OS LTDA</h3>
+          <p style="margin:0; font-size:.75rem;">CNPJ: 00.000.000/0001-00</p>
+          <p style="margin:0; font-size:.75rem;">Rua Exemplo, 123 - Centro</p>
+          <p style="margin:0; font-size:.75rem;">-----------------------------------</p>
+          <strong style="font-size:.9rem;">DANFE NFC-e - SIMULAÇÃO</strong><br>
+          <small>Documento Auxiliar da Nota Fiscal<br>de Consumidor Eletrônica</small>
+        </div>
+        
+        <table style="width:100%; font-size:.8rem; margin-bottom:1rem; border-collapse:collapse;">
+          <thead>
+            <tr style="border-bottom:1px dashed #000; border-top:1px dashed #000;">
+              <th style="text-align:left;">COD</th>
+              <th style="text-align:left;">DESC</th>
+              <th style="text-align:right;">QTD</th>
+              <th style="text-align:right;">UN(R$)</th>
+              <th style="text-align:right;">VL(R$)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${v.itens.map(i => `
+              <tr>
+                <td>${i.produto_id}</td>
+                <td>${i.produto_nome.substring(0,10)}</td>
+                <td style="text-align:right;">${i.quantidade}</td>
+                <td style="text-align:right;">${i.preco_unitario.toFixed(2)}</td>
+                <td style="text-align:right;">${(i.preco_unitario * i.quantidade).toFixed(2)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        
+        <div style="border-top:1px dashed #000; padding-top:.5rem;">
+          <div style="display:flex; justify-content:space-between;"><span>Qtd. Total de Itens:</span><span>${v.itens.reduce((s,i)=>s+i.quantidade,0)}</span></div>
+          <div style="display:flex; justify-content:space-between;"><span>Valor Total:</span><span>${fmt.brl(v.total + (v.desconto||0))}</span></div>
+          <div style="display:flex; justify-content:space-between;"><span>Descontos:</span><span>${fmt.brl(v.desconto||0)}</span></div>
+          <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:1rem; margin-top:.5rem;"><span>VALOR A PAGAR:</span><span>${fmt.brl(v.total)}</span></div>
+          <div style="display:flex; justify-content:space-between; margin-top:.5rem;"><span>FORMA PAGAMENTO:</span><span style="text-transform:uppercase;">${v.forma_pagamento}</span></div>
+        </div>
+        
+        <div style="text-align:center; margin-top:1.5rem; font-size:.7rem; border-top:1px dashed #000; padding-top:.5rem;">
+          <p>Consulte pela Chave de Acesso em<br>http://www.sefaz.gov.br/nfce/consulta</p>
+          <p>0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000</p>
+          <p>-----------------------------------</p>
+          <p>NFC-e n° ${v.id} Série 1 <br>${new Date(v.data).toLocaleString()}</p>
+        </div>
+      </div>
+    `;
+    
+    document.getElementById('modalTitulo').textContent = 'Recibo de Venda / NFC-e';
+    document.getElementById('modalCorpo').innerHTML = cupomHTML;
+    document.getElementById('modalRodape').innerHTML = `
+      <button class="btn btn-secondary" onclick="fecharModal()">Fechar</button>
+      <button class="btn btn-primary" onclick="window.print()">🖨️ Imprimir</button>
+    `;
+    document.getElementById('modalGenerico').style.display = 'flex';
+  } catch (e) {
+    showToast('Erro ao gerar recibo', 'error');
+  }
+}
+
+/* ════════════════════════════════════════
+   PRODUTOS
+════════════════════════════════════════ */
+async function renderProdutos() {
+  document.getElementById('topbarActions').innerHTML = `<button class="btn btn-primary btn-sm" onclick="abrirModalProduto()">+ Novo Produto</button>`;
+  const pc = document.getElementById('pageContent');
+  pc.innerHTML = `<div class="empty-state"><span class="spinner" style="width:32px;height:32px;border-width:3px;"></span></div>`;
+  try {
+    const produtos = await API.get('/produtos');
+    pc.innerHTML = `
+      <div class="section-header" style="margin-bottom:1rem;">
+        <input type="text" id="prodSearch" placeholder="🔍 Buscar produto..." style="max-width:300px;" oninput="filtrarTabelaProdutos(this.value, produtosData)">
+      </div>
+      <div class="card">
+        <div class="table-wrapper">
+          <table id="prodTable">
+            <thead><tr><th>SKU</th><th>Nome</th><th>Categoria</th><th>Custo</th><th>Venda</th><th>Estoque</th><th>Status</th><th>Ações</th></tr></thead>
+            <tbody id="prodTbody">${renderProdutosRows(produtos)}</tbody>
+          </table>
+        </div>
+      </div>`;
+    window.produtosData = produtos;
+  } catch (e) { pc.innerHTML = `<div class="empty-state"><p>Erro ao carregar produtos.</p></div>`; }
+}
+
+function renderProdutosRows(list) {
+  if (!list.length) return '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);">Nenhum produto encontrado.</td></tr>';
+  return list.map(p => `
+    <tr>
+      <td><code style="font-size:.78rem;">${p.sku}</code></td>
+      <td><strong>${p.nome}</strong><br><small style="color:var(--text-muted)">${p.descricao || ''}</small></td>
+      <td>${p.categoria ? `<span class="badge badge-gray">${p.categoria}</span>` : '—'}</td>
+      <td>${p.custo ? fmt.brl(p.custo) : '—'}</td>
+      <td><strong>${fmt.brl(p.preco_venda)}</strong></td>
+      <td><span class="badge ${p.estoque_atual > 5 ? 'badge-green' : p.estoque_atual > 0 ? 'badge-yellow' : 'badge-red'}">${p.estoque_atual}</span></td>
+      <td><span class="badge ${p.ativo ? 'badge-green' : 'badge-gray'}">${p.ativo ? 'Ativo' : 'Inativo'}</span></td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="abrirModalProduto(${JSON.stringify(p).replace(/"/g,'&quot;')})">✏️</button>
+      </td>
+    </tr>`).join('');
+}
+
+function filtrarTabelaProdutos(q, lista) {
+  const lower = q.toLowerCase();
+  const filtered = lista.filter(p => p.nome.toLowerCase().includes(lower) || (p.sku || '').toLowerCase().includes(lower) || (p.categoria || '').toLowerCase().includes(lower));
+  document.getElementById('prodTbody').innerHTML = renderProdutosRows(filtered);
+}
+
+function abrirModalProduto(prod = null) {
+  document.getElementById('modalTitulo').textContent = prod ? 'Editar Produto' : 'Novo Produto';
+  document.getElementById('modalCorpo').innerHTML = `
+    <div class="input-group"><label>SKU *</label><input id="mSku" value="${prod?.sku || ''}" ${prod ? 'readonly' : ''} placeholder="Ex: PROD-001"></div>
+    <div class="input-group"><label>Nome *</label><input id="mNome" value="${prod?.nome || ''}" placeholder="Nome do produto"></div>
+    <div class="input-group"><label>Descrição</label><input id="mDesc" value="${prod?.descricao || ''}" placeholder="Descrição curta"></div>
+    <div class="input-group"><label>Categoria</label><input id="mCat" value="${prod?.categoria || ''}" placeholder="Ex: Vestuário"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+      <div class="input-group"><label>Custo (R$)</label><input id="mCusto" type="number" step="0.01" value="${prod?.custo || ''}" placeholder="0,00"></div>
+      <div class="input-group"><label>Preço de Venda (R$) *</label><input id="mPreco" type="number" step="0.01" value="${prod?.preco_venda || ''}" placeholder="0,00"></div>
+    </div>
+    ${!prod ? `<div class="input-group"><label>Estoque Inicial</label><input id="mEstoque" type="number" value="0" min="0"></div>` : ''}
+    ${prod ? `<div class="input-group"><label>Status</label><select id="mAtivo"><option value="1" ${prod.ativo ? 'selected' : ''}>Ativo</option><option value="0" ${!prod.ativo ? 'selected' : ''}>Inativo</option></select></div>` : ''}
+  `;
+  document.getElementById('modalRodape').innerHTML = `
+    <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+    <button class="btn btn-primary" onclick="salvarProduto(${prod ? prod.id : 'null'})">💾 Salvar</button>
+  `;
+  document.getElementById('modalGenerico').style.display = 'flex';
+}
+
+async function salvarProduto(id) {
+  const sku    = document.getElementById('mSku').value.trim();
+  const nome   = document.getElementById('mNome').value.trim();
+  const preco  = parseFloat(document.getElementById('mPreco').value);
+  if (!sku || !nome || !preco) { showToast('Preencha os campos obrigatórios.', 'error'); return; }
+  const data = {
+    sku, nome,
+    descricao:   document.getElementById('mDesc').value.trim(),
+    categoria:   document.getElementById('mCat').value.trim(),
+    custo:       parseFloat(document.getElementById('mCusto').value) || 0,
+    preco_venda: preco,
+    estoque_atual: id ? undefined : parseInt(document.getElementById('mEstoque').value) || 0,
+    ativo:       id ? parseInt(document.getElementById('mAtivo').value) : 1,
+  };
+  try {
+    if (id) await API.put(`/produtos/${id}`, data);
+    else    await API.post('/produtos', data);
+    showToast(id ? 'Produto atualizado!' : 'Produto cadastrado!', 'success');
+    fecharModal(); renderProdutos();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+/* ════════════════════════════════════════
+   ESTOQUE
+════════════════════════════════════════ */
+async function renderEstoque() {
+  document.getElementById('topbarActions').innerHTML = `
+    <button class="btn btn-secondary btn-sm" onclick="abrirModalMovimento('entrada')">📥 Entrada</button>
+    <button class="btn btn-secondary btn-sm" onclick="abrirModalMovimento('ajuste')">🔧 Ajuste</button>
+  `;
+  const pc = document.getElementById('pageContent');
+  pc.innerHTML = `<div class="empty-state"><span class="spinner" style="width:32px;height:32px;border-width:3px;"></span></div>`;
+  try {
+    const itens = await API.get('/estoque');
+    pc.innerHTML = `
+      <div class="card">
+        <div class="card-header"><h3>Estoque Atual</h3></div>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>SKU</th><th>Produto</th><th>Categoria</th><th>Custo Unit.</th><th>Preço Venda</th><th>Estoque</th><th>Valor Total</th></tr></thead>
+            <tbody>
+              ${itens.map(p => `
+                <tr>
+                  <td><code style="font-size:.78rem;">${p.sku}</code></td>
+                  <td>${p.nome}</td>
+                  <td>${p.categoria || '—'}</td>
+                  <td>${p.custo ? fmt.brl(p.custo) : '—'}</td>
+                  <td>${fmt.brl(p.preco_venda)}</td>
+                  <td><span class="badge ${p.estoque_atual > 5 ? 'badge-green' : p.estoque_atual > 0 ? 'badge-yellow' : 'badge-red'}">${p.estoque_atual}</span></td>
+                  <td>${p.custo ? fmt.brl(p.custo * p.estoque_atual) : '—'}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+    window.estoqueProdutos = itens;
+  } catch (e) { pc.innerHTML = `<div class="empty-state"><p>Erro ao carregar estoque.</p></div>`; }
+}
+
+async function abrirModalMovimento(tipo) {
+  const prods = window.estoqueProdutos || await API.get('/estoque');
+  const titulo = { entrada: '📥 Entrada de Estoque', saida: '📤 Saída de Estoque', ajuste: '🔧 Ajuste de Estoque' }[tipo];
+  document.getElementById('modalTitulo').textContent = titulo;
+  document.getElementById('modalCorpo').innerHTML = `
+    <div class="input-group"><label>Produto *</label>
+      <select id="mProdId"><option value="">Selecione...</option>${prods.map(p => `<option value="${p.id}">${p.nome} (Estoque: ${p.estoque_atual})</option>`).join('')}</select>
+    </div>
+    <div class="input-group"><label>${tipo === 'ajuste' ? 'Nova Quantidade' : 'Quantidade'} *</label><input id="mQtd" type="number" min="1" placeholder="0"></div>
+    <div class="input-group"><label>Observação</label><input id="mObs" placeholder="Motivo da movimentação"></div>
+  `;
+  document.getElementById('modalRodape').innerHTML = `
+    <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+    <button class="btn btn-primary" onclick="salvarMovimento('${tipo}')">💾 Confirmar</button>
+  `;
+  document.getElementById('modalGenerico').style.display = 'flex';
+}
+
+async function salvarMovimento(tipo) {
+  const prodId = parseInt(document.getElementById('mProdId').value);
+  const qtd    = parseInt(document.getElementById('mQtd').value);
+  const obs    = document.getElementById('mObs').value.trim();
+  if (!prodId || !qtd) { showToast('Preencha todos os campos.', 'error'); return; }
+  try {
+    const endpoint = tipo === 'ajuste' ? '/estoque/ajuste' : `/estoque/${tipo}`;
+    const body = tipo === 'ajuste'
+      ? { produto_id: prodId, quantidade_nova: qtd, usuario_id: user.id, observacao: obs }
+      : { produto_id: prodId, quantidade: qtd, usuario_id: user.id, observacao: obs };
+    await API.post(endpoint, body);
+    showToast('Movimentação registrada!', 'success');
+    fecharModal(); renderEstoque();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+/* ════════════════════════════════════════
+   CLIENTES
+════════════════════════════════════════ */
+async function renderClientes() {
+  document.getElementById('topbarActions').innerHTML = `<button class="btn btn-primary btn-sm" onclick="abrirModalCliente()">+ Novo Cliente</button>`;
+  const pc = document.getElementById('pageContent');
+  pc.innerHTML = `<div class="empty-state"><span class="spinner" style="width:32px;height:32px;border-width:3px;"></span></div>`;
+  try {
+    const clientes = await API.get('/clientes');
+    pc.innerHTML = `
+      <div class="card">
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Nome</th><th>CPF/CNPJ</th><th>Telefone</th><th>E-mail</th><th>Pontos</th></tr></thead>
+            <tbody>
+              ${clientes.length ? clientes.map(c => `
+                <tr>
+                  <td><strong>${c.nome}</strong></td>
+                  <td>${c.cpf_cnpj || '—'}</td>
+                  <td>${c.telefone || '—'}</td>
+                  <td>${c.email || '—'}</td>
+                  <td><span class="badge badge-blue">⭐ ${c.pontos || 0}</span></td>
+                </tr>`).join('') : '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted);">Nenhum cliente cadastrado.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  } catch (e) { pc.innerHTML = `<div class="empty-state"><p>Erro ao carregar clientes.</p></div>`; }
+}
+
+function abrirModalCliente() {
+  document.getElementById('modalTitulo').textContent = 'Novo Cliente';
+  document.getElementById('modalCorpo').innerHTML = `
+    <div class="input-group"><label>Nome *</label><input id="cNome" placeholder="Nome completo"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+      <div class="input-group"><label>CPF/CNPJ</label><input id="cCpf" placeholder="Opcional"></div>
+      <div class="input-group"><label>Telefone</label><input id="cTel" placeholder="(XX) XXXXX-XXXX"></div>
+    </div>
+    <div class="input-group"><label>Email</label><input id="cEmail" placeholder="cliente@email.com"></div>
+    <hr style="margin:1rem 0;border:0;border-top:1px solid var(--border);">
+    <h4 style="margin-bottom:.5rem;">Endereço</h4>
+    <div style="display:grid;grid-template-columns:100px 1fr;gap:.75rem;">
+      <div class="input-group"><label>CEP</label><input id="cCep" placeholder="00000-000" onblur="buscarCep(this.value)"></div>
+      <div class="input-group"><label>Logradouro</label><input id="cRua" placeholder="Rua, Av..."></div>
+    </div>
+    <div style="display:grid;grid-template-columns:100px 1fr;gap:.75rem;">
+      <div class="input-group"><label>Número</label><input id="cNum" placeholder="123"></div>
+      <div class="input-group"><label>Complemento</label><input id="cComp" placeholder="Apto, Bloco..."></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 60px;gap:.75rem;">
+      <div class="input-group"><label>Bairro</label><input id="cBairro" placeholder="Bairro"></div>
+      <div class="input-group"><label>Cidade</label><input id="cCidade" placeholder="Cidade"></div>
+      <div class="input-group"><label>UF</label><input id="cUf" placeholder="UF"></div>
+    </div>
+  `;
+  document.getElementById('modalRodape').innerHTML = `
+    <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+    <button class="btn btn-primary" onclick="salvarCliente()">💾 Salvar</button>
+  `;
+  document.getElementById('modalGenerico').style.display = 'flex';
+}
+
+async function buscarCep(cep) {
+  cep = cep.replace(/\\D/g, '');
+  if (cep.length !== 8) return;
+  try {
+    const res = await fetch(\`https://viacep.com.br/ws/\${cep}/json/\`);
+    const data = await res.json();
+    if (!data.erro) {
+      document.getElementById('cRua').value = data.logradouro;
+      document.getElementById('cBairro').value = data.bairro;
+      document.getElementById('cCidade').value = data.localidade;
+      document.getElementById('cUf').value = data.uf;
+      document.getElementById('cNum').focus();
+    }
+  } catch (e) { console.error('Erro ao buscar CEP', e); }
+}
+
+async function salvarCliente() {
+  const nome = document.getElementById('cNome').value.trim();
+  const cpf_cnpj = document.getElementById('cCpf').value.trim();
+  const telefone = document.getElementById('cTel').value.trim();
+  const email = document.getElementById('cEmail').value.trim();
+  
+  const rua = document.getElementById('cRua').value.trim();
+  const num = document.getElementById('cNum').value.trim();
+  const comp = document.getElementById('cComp').value.trim();
+  const bairro = document.getElementById('cBairro').value.trim();
+  const cidade = document.getElementById('cCidade').value.trim();
+  const uf = document.getElementById('cUf').value.trim();
+  
+  let endereco = '';
+  if (rua) {
+    endereco = \`\${rua}, \${num}\`;
+    if(comp) endereco += \` - \${comp}\`;
+    endereco += \` - \${bairro}, \${cidade} - \${uf}\`;
+  }
+
+  if (!nome) { showToast('Nome é obrigatório.', 'error'); return; }
+  try {
+    await API.post('/clientes', { nome, cpf_cnpj, telefone, email, endereco });
+    showToast('Cliente criado com sucesso!', 'success');
+    fecharModal(); renderClientes();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+/* ════════════════════════════════════════
+   LOJAS
+════════════════════════════════════════ */
+async function renderLojas() {
+  document.getElementById('topbarActions').innerHTML = `<button class="btn btn-primary btn-sm" onclick="abrirModalLoja()">+ Nova Loja</button>`;
+  const pc = document.getElementById('pageContent');
+  pc.innerHTML = `<div class="empty-state"><span class="spinner" style="width:32px;height:32px;border-width:3px;"></span></div>`;
+  try {
+    const lojas = await API.get('/lojas');
+    pc.innerHTML = `
+      <div class="card">
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Nome</th><th>CNPJ</th><th>Endereço</th><th>Telefone</th><th>E-mail</th></tr></thead>
+            <tbody>
+              ${lojas.map(l => `
+                <tr>
+                  <td><strong>${l.nome}</strong></td>
+                  <td>${l.cnpj || '—'}</td>
+                  <td>${l.endereco || '—'}</td>
+                  <td>${l.telefone || '—'}</td>
+                  <td>${l.email || '—'}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  } catch (e) { pc.innerHTML = `<div class="empty-state"><p>Erro ao carregar lojas.</p></div>`; }
+}
+
+function abrirModalLoja() {
+  document.getElementById('modalTitulo').textContent = 'Nova Loja';
+  document.getElementById('modalCorpo').innerHTML = `
+    <div class="input-group"><label>Nome *</label><input id="lNome" placeholder="Nome da loja"></div>
+    <div class="input-group"><label>CNPJ</label><input id="lCnpj" placeholder="00.000.000/0001-00"></div>
+    <div class="input-group"><label>Endereço</label><input id="lEnd" placeholder="Rua, número, cidade"></div>
+    <div class="input-group"><label>Telefone</label><input id="lTel" placeholder="(11) 99999-9999"></div>
+    <div class="input-group"><label>E-mail</label><input id="lEmail" type="email" placeholder="loja@exemplo.com"></div>
+  `;
+  document.getElementById('modalRodape').innerHTML = `
+    <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+    <button class="btn btn-primary" onclick="salvarLoja()">💾 Salvar</button>
+  `;
+  document.getElementById('modalGenerico').style.display = 'flex';
+}
+
+async function salvarLoja() {
+  const nome = document.getElementById('lNome').value.trim();
+  if (!nome) { showToast('Informe o nome da loja.', 'error'); return; }
+  try {
+    await API.post('/lojas', { nome, cnpj: document.getElementById('lCnpj').value.trim(), endereco: document.getElementById('lEnd').value.trim(), telefone: document.getElementById('lTel').value.trim(), email: document.getElementById('lEmail').value.trim() });
+    showToast('Loja cadastrada!', 'success');
+    fecharModal(); renderLojas();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+/* ════════════════════════════════════════
+   VENDEDORES
+════════════════════════════════════════ */
+async function renderVendedores() {
+  document.getElementById('topbarActions').innerHTML = `<button class="btn btn-primary btn-sm" onclick="abrirModalVendedor()">+ Novo Vendedor</button>`;
+  const pc = document.getElementById('pageContent');
+  pc.innerHTML = `<div class="empty-state"><span class="spinner" style="width:32px;height:32px;border-width:3px;"></span></div>`;
+  try {
+    const vendedores = await API.get('/vendedores');
+    pc.innerHTML = `
+      <div class="card">
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>ID</th><th>Nome</th><th>E-mail</th></tr></thead>
+            <tbody>
+              ${vendedores.map(v => `
+                <tr>
+                  <td><strong>#${v.id}</strong></td>
+                  <td>${v.nome}</td>
+                  <td>${v.email}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  } catch (e) { pc.innerHTML = `<div class="empty-state"><p>Erro ao carregar vendedores.</p></div>`; }
+}
+
+function abrirModalVendedor() {
+  document.getElementById('modalTitulo').textContent = 'Novo Vendedor';
+  document.getElementById('modalCorpo').innerHTML = `
+    <div class="input-group"><label>Nome *</label><input id="vNome" placeholder="Nome do vendedor"></div>
+    <div class="input-group"><label>E-mail *</label><input id="vEmail" type="email" placeholder="vendedor@loja.com"></div>
+    <div class="input-group"><label>Senha *</label><input id="vSenha" type="password" placeholder="******"></div>
+  `;
+  document.getElementById('modalRodape').innerHTML = `
+    <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+    <button class="btn btn-primary" onclick="salvarVendedor()">💾 Salvar</button>
+  `;
+  document.getElementById('modalGenerico').style.display = 'flex';
+}
+
+async function salvarVendedor() {
+  const nome = document.getElementById('vNome').value.trim();
+  const email = document.getElementById('vEmail').value.trim();
+  const senha = document.getElementById('vSenha').value.trim();
+  if (!nome || !email || !senha) { showToast('Preencha todos os campos.', 'error'); return; }
+  try {
+    await API.post('/vendedores', { nome, email, senha, loja_id: user.loja_id });
+    showToast('Vendedor cadastrado!', 'success');
+    fecharModal(); renderVendedores();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+/* ════════════════════════════════════════
+   COMISSÕES
+════════════════════════════════════════ */
+async function renderComissoes() {
+  const pc = document.getElementById('pageContent');
+  pc.innerHTML = `<div class="empty-state"><span class="spinner" style="width:32px;height:32px;border-width:3px;"></span></div>`;
+  try {
+    const comissoes = await API.get('/comissoes');
+    pc.innerHTML = `
+      <div class="card">
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Vendedor</th><th>Total Vendido</th><th>Qtd Vendas</th><th>Comissão (5%)</th></tr></thead>
+            <tbody>
+              ${comissoes.length ? comissoes.map(c => `
+                <tr>
+                  <td><strong>${c.vendedor}</strong></td>
+                  <td>${fmt.brl(c.total_vendido)}</td>
+                  <td><span class="badge badge-gray">${c.total_vendas}</span></td>
+                  <td><strong style="color:var(--success)">${fmt.brl(c.total_comissao)}</strong></td>
+                </tr>`).join('') : '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text-muted);">Nenhuma comissão registrada.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  } catch (e) { pc.innerHTML = `<div class="empty-state"><p>Erro ao carregar comissões.</p></div>`; }
+}
+
+/* ════════════════════════════════════════
+   CAMPANHAS / PROMOÇÕES
+════════════════════════════════════════ */
+async function renderCampanhas() {
+  document.getElementById('topbarActions').innerHTML = `<button class="btn btn-primary btn-sm" onclick="abrirModalCampanha()">+ Nova Campanha</button>`;
+  const pc = document.getElementById('pageContent');
+  pc.innerHTML = `<div class="empty-state"><span class="spinner" style="width:32px;height:32px;border-width:3px;"></span></div>`;
+  try {
+    const campanhas = await API.get('/campanhas');
+    pc.innerHTML = `
+      <div class="card">
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Nome</th><th>Cupom</th><th>Tipo</th><th>Desconto</th><th>Status</th><th>Ações</th></tr></thead>
+            <tbody>
+              ${campanhas.length ? campanhas.map(c => `
+                <tr>
+                  <td><strong>${c.nome}</strong></td>
+                  <td><span class="badge badge-blue" style="font-family:monospace;letter-spacing:1px;">${c.codigo_cupom}</span></td>
+                  <td>${c.tipo_desconto === 'percentual' ? 'Percentual (%)' : 'Fixo (R$)'}</td>
+                  <td><strong>${c.tipo_desconto === 'percentual' ? c.valor_desconto + '%' : fmt.brl(c.valor_desconto)}</strong></td>
+                  <td><span class="badge ${c.ativo ? 'badge-green' : 'badge-gray'}">${c.ativo ? 'Ativo' : 'Inativo'}</span></td>
+                  <td>
+                    <button class="btn btn-ghost btn-sm" onclick="toggleCampanha(${c.id}, ${c.ativo})" title="${c.ativo ? 'Desativar' : 'Ativar'}">${c.ativo ? '⏸️' : '▶️'}</button>
+                  </td>
+                </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-muted);">Nenhuma campanha cadastrada.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  } catch (e) { pc.innerHTML = `<div class="empty-state"><p>Erro ao carregar campanhas.</p></div>`; }
+}
+
+function abrirModalCampanha() {
+  document.getElementById('modalTitulo').textContent = 'Nova Campanha';
+  document.getElementById('modalCorpo').innerHTML = `
+    <div class="input-group"><label>Nome da Campanha *</label><input id="campNome" placeholder="Ex: Black Friday"></div>
+    <div class="input-group"><label>Código do Cupom *</label><input id="campCodigo" style="text-transform:uppercase;" placeholder="BLACK20"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+      <div class="input-group"><label>Tipo de Desconto</label>
+        <select id="campTipo"><option value="percentual">Percentual (%)</option><option value="fixo">Fixo (R$)</option></select>
+      </div>
+      <div class="input-group"><label>Valor *</label><input id="campValor" type="number" step="0.01" placeholder="Ex: 20"></div>
+    </div>
+  `;
+  document.getElementById('modalRodape').innerHTML = `
+    <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+    <button class="btn btn-primary" onclick="salvarCampanha()">💾 Salvar</button>
+  `;
+  document.getElementById('modalGenerico').style.display = 'flex';
+}
+
+async function salvarCampanha() {
+  const nome = document.getElementById('campNome').value.trim();
+  const codigo_cupom = document.getElementById('campCodigo').value.trim().toUpperCase();
+  const tipo_desconto = document.getElementById('campTipo').value;
+  const valor_desconto = parseFloat(document.getElementById('campValor').value);
+  if (!nome || !codigo_cupom || !valor_desconto) { showToast('Preencha os campos obrigatórios.', 'error'); return; }
+  try {
+    await API.post('/campanhas', { nome, codigo_cupom, tipo_desconto, valor_desconto });
+    showToast('Campanha criada!', 'success');
+    fecharModal(); renderCampanhas();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function toggleCampanha(id, ativoAtual) {
+  try {
+    await API.put(`/campanhas/${id}/status`, { ativo: ativoAtual ? 0 : 1 });
+    showToast(`Campanha ${ativoAtual ? 'desativada' : 'ativada'}.`, 'success');
+    renderCampanhas();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+/* ════════════════════════════════════════
+   FINANCEIRO / FLUXO DE CAIXA
+════════════════════════════════════════ */
+async function renderFinanceiro() {
+  document.getElementById('topbarActions').innerHTML = `<button class="btn btn-primary btn-sm" onclick="abrirModalDespesa()">+ Nova Despesa</button>`;
+  const pc = document.getElementById('pageContent');
+  pc.innerHTML = `<div class="empty-state"><span class="spinner" style="width:32px;height:32px;border-width:3px;"></span></div>`;
+  try {
+    const [fluxo, despesas] = await Promise.all([
+      API.get('/financeiro/fluxo-caixa'),
+      API.get('/despesas')
+    ]);
+
+    const corSaldo = fluxo.saldo >= 0 ? 'var(--success)' : 'var(--danger)';
+
+    pc.innerHTML = `
+      <div class="dashboard-grid">
+        <div class="card stat-card">
+          <h3>Receitas (Mês)</h3>
+          <div class="stat-value" style="color:var(--success)">${fmt.brl(fluxo.receitas)}</div>
+        </div>
+        <div class="card stat-card">
+          <h3>Despesas (Mês)</h3>
+          <div class="stat-value" style="color:var(--danger)">${fmt.brl(fluxo.despesas)}</div>
+        </div>
+        <div class="card stat-card">
+          <h3>Saldo Líquido</h3>
+          <div class="stat-value" style="color:${corSaldo}">${fmt.brl(fluxo.saldo)}</div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:1.5rem;">
+        <h3 style="margin-bottom:1rem;">Histórico de Despesas</h3>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Ações</th></tr></thead>
+            <tbody>
+              ${despesas.length ? despesas.map(d => `
+                <tr>
+                  <td>${new Date(d.data).toLocaleDateString()}</td>
+                  <td><strong>${d.descricao}</strong></td>
+                  <td><span class="badge badge-gray">${d.categoria}</span></td>
+                  <td style="color:var(--danger)">- ${fmt.brl(d.valor)}</td>
+                  <td>
+                    <button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="excluirDespesa(${d.id})" title="Excluir">🗑️</button>
+                  </td>
+                </tr>`).join('') : '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted);">Nenhuma despesa lançada.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  } catch (e) { pc.innerHTML = `<div class="empty-state"><p>Erro ao carregar dados financeiros.</p></div>`; }
+}
+
+function abrirModalDespesa() {
+  document.getElementById('modalTitulo').textContent = 'Nova Despesa';
+  document.getElementById('modalCorpo').innerHTML = `
+    <div class="input-group"><label>Descrição *</label><input id="despDesc" placeholder="Ex: Conta de Luz"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+      <div class="input-group"><label>Categoria</label>
+        <select id="despCat">
+          <option value="Operacional">Operacional</option>
+          <option value="Pessoal">Pessoal / Folha</option>
+          <option value="Impostos">Impostos / Taxas</option>
+          <option value="Marketing">Marketing</option>
+          <option value="Outros">Outros</option>
+        </select>
+      </div>
+      <div class="input-group"><label>Valor (R$) *</label><input id="despValor" type="number" step="0.01" placeholder="Ex: 150.50"></div>
+    </div>
+  `;
+  document.getElementById('modalRodape').innerHTML = `
+    <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+    <button class="btn btn-primary" onclick="salvarDespesa()">💾 Salvar</button>
+  `;
+  document.getElementById('modalGenerico').style.display = 'flex';
+}
+
+async function salvarDespesa() {
+  const descricao = document.getElementById('despDesc').value.trim();
+  const categoria = document.getElementById('despCat').value;
+  const valor = parseFloat(document.getElementById('despValor').value);
+  if (!descricao || !valor) { showToast('Preencha os campos obrigatórios.', 'error'); return; }
+  try {
+    await API.post('/despesas', { descricao, categoria, valor, loja_id: user.loja_id });
+    showToast('Despesa lançada!', 'success');
+    fecharModal(); renderFinanceiro();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function excluirDespesa(id) {
+  if(!confirm('Tem certeza que deseja excluir esta despesa?')) return;
+  try {
+    await API.delete(`/despesas/${id}`);
+    showToast('Despesa excluída!', 'success');
+    renderFinanceiro();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+/* ════════════════════════════════════════
+   KITS E COMBOS
+════════════════════════════════════════ */
+let composicaoKitAtual = [];
+
+async function renderKits() {
+  document.getElementById('topbarActions').innerHTML = `<button class="btn btn-primary btn-sm" onclick="abrirModalKit()">+ Novo Kit</button>`;
+  const pc = document.getElementById('pageContent');
+  pc.innerHTML = `<div class="empty-state"><span class="spinner" style="width:32px;height:32px;border-width:3px;"></span></div>`;
+  try {
+    const kits = await API.get('/kits');
+    pc.innerHTML = `
+      <div class="card">
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>SKU</th><th>Nome</th><th>Preço de Venda</th><th>Composição</th></tr></thead>
+            <tbody>
+              ${kits.length ? kits.map(k => `
+                <tr>
+                  <td><strong>${k.sku}</strong></td>
+                  <td>${k.nome}</td>
+                  <td><strong>${fmt.brl(k.preco_venda)}</strong></td>
+                  <td>${k.produtos.map(p => `${p.quantidade}x ${p.nome}`).join('<br>')}</td>
+                </tr>`).join('') : '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text-muted);">Nenhum kit cadastrado.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  } catch (e) { pc.innerHTML = `<div class="empty-state"><p>Erro ao carregar kits.</p></div>`; }
+}
+
+async function abrirModalKit() {
+  composicaoKitAtual = [];
+  document.getElementById('modalTitulo').textContent = 'Novo Kit / Combo';
+  
+  // Traz produtos para montar o kit
+  const produtos = await API.get('/produtos?ativo=1');
+  
+  document.getElementById('modalCorpo').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 2fr;gap:.75rem;">
+      <div class="input-group"><label>SKU *</label><input id="kSku" placeholder="Ex: KIT-001"></div>
+      <div class="input-group"><label>Nome do Kit *</label><input id="kNome" placeholder="Ex: Kit Verão"></div>
+    </div>
+    <div class="input-group"><label>Preço de Venda (R$) *</label><input id="kPreco" type="number" step="0.01" placeholder="Ex: 99.90"></div>
+    
+    <hr style="margin:1rem 0;border:0;border-top:1px solid var(--border);">
+    <h4 style="margin-bottom:.5rem;">Composição do Kit</h4>
+    <div style="display:flex;gap:.5rem;margin-bottom:1rem;">
+      <select id="kProdSelect" style="flex:1;">
+        <option value="">Selecione um produto...</option>
+        ${produtos.map(p => `<option value="${p.id}" data-nome="${p.nome}">${p.nome} (Estoque: ${p.estoque_atual})</option>`).join('')}
+      </select>
+      <input type="number" id="kProdQtd" value="1" min="1" style="width:60px;">
+      <button class="btn btn-secondary" onclick="adicionarProdutoAoKit()">Add</button>
+    </div>
+    <ul id="kComposicaoList" style="list-style:none;padding:0;margin:0;font-size:.9rem;">
+      <li style="color:var(--text-muted);">Nenhum produto adicionado.</li>
+    </ul>
+  `;
+  document.getElementById('modalRodape').innerHTML = `
+    <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+    <button class="btn btn-primary" onclick="salvarKit()">💾 Salvar Kit</button>
+  `;
+  document.getElementById('modalGenerico').style.display = 'flex';
+}
+
+function adicionarProdutoAoKit() {
+  const select = document.getElementById('kProdSelect');
+  const qty = parseInt(document.getElementById('kProdQtd').value);
+  if(!select.value || qty < 1) return;
+  const id = select.value;
+  const nome = select.options[select.selectedIndex].getAttribute('data-nome');
+  
+  const existe = composicaoKitAtual.find(c => c.produto_id == id);
+  if(existe) existe.quantidade += qty;
+  else composicaoKitAtual.push({ produto_id: id, nome, quantidade: qty });
+  
+  atualizarListaKit();
+}
+
+function removerProdutoDoKit(idx) {
+  composicaoKitAtual.splice(idx, 1);
+  atualizarListaKit();
+}
+
+function atualizarListaKit() {
+  const ul = document.getElementById('kComposicaoList');
+  if(!composicaoKitAtual.length) {
+    ul.innerHTML = `<li style="color:var(--text-muted);">Nenhum produto adicionado.</li>`;
+    return;
+  }
+  ul.innerHTML = composicaoKitAtual.map((c, i) => `
+    <li style="display:flex;justify-content:space-between;padding:.5rem;background:var(--bg-tertiary);border-radius:4px;margin-bottom:.25rem;">
+      <span>${c.quantidade}x ${c.nome}</span>
+      <span style="cursor:pointer;color:var(--danger);" onclick="removerProdutoDoKit(${i})">✕</span>
+    </li>
+  `).join('');
+}
+
+async function salvarKit() {
+  const sku = document.getElementById('kSku').value.trim();
+  const nome = document.getElementById('kNome').value.trim();
+  const preco_venda = parseFloat(document.getElementById('kPreco').value);
+  if (!sku || !nome || !preco_venda || !composicaoKitAtual.length) { showToast('Preencha SKU, Nome, Preço e adicione ao menos 1 produto.', 'error'); return; }
+  
+  const payload = {
+    sku, nome, preco_venda,
+    produtos: composicaoKitAtual.map(c => ({ produto_id: c.produto_id, quantidade: c.quantidade }))
+  };
+  
+  try {
+    await API.post('/kits', payload);
+    showToast('Kit criado com sucesso!', 'success');
+    fecharModal(); renderKits();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+/* ════════════════════════════════════════
+   ENTREGADORES E ENTREGAS (FASE 3)
+════════════════════════════════════════ */
+async function renderEntregadores() {
+  document.getElementById('topbarActions').innerHTML = `<button class="btn btn-primary btn-sm" onclick="abrirModalEntregador()">+ Novo Entregador</button>`;
+  const pc = document.getElementById('pageContent');
+  pc.innerHTML = `<div class="empty-state"><span class="spinner" style="width:32px;height:32px;border-width:3px;"></span></div>`;
+  try {
+    const ents = await API.get('/entregadores');
+    pc.innerHTML = `
+      <div class="card">
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Nome</th><th>Veículo</th><th>Placa</th><th>Telefone</th><th>Status</th></tr></thead>
+            <tbody>
+              ${ents.length ? ents.map(e => `
+                <tr>
+                  <td><strong>${e.nome}</strong></td>
+                  <td>${e.veiculo || '—'}</td>
+                  <td>${e.placa || '—'}</td>
+                  <td>${e.telefone || '—'}</td>
+                  <td><span class="badge ${e.status === 'disponivel' ? 'badge-green' : 'badge-yellow'}">${e.status}</span></td>
+                </tr>`).join('') : '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text-muted);">Nenhum entregador cadastrado.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  } catch (e) { pc.innerHTML = `<div class="empty-state"><p>Erro ao carregar entregadores.</p></div>`; }
+}
+
+function abrirModalEntregador() {
+  document.getElementById('modalTitulo').textContent = 'Novo Entregador';
+  document.getElementById('modalCorpo').innerHTML = `
+    <div class="input-group"><label>Nome *</label><input id="eNome" placeholder="Ex: Carlos Moto"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+      <div class="input-group"><label>Veículo</label><input id="eVeiculo" placeholder="Ex: Honda CG 160"></div>
+      <div class="input-group"><label>Placa</label><input id="ePlaca" placeholder="ABC-1234"></div>
+    </div>
+    <div class="input-group"><label>Telefone</label><input id="eTel" placeholder="(XX) XXXXX-XXXX"></div>
+  `;
+  document.getElementById('modalRodape').innerHTML = `
+    <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+    <button class="btn btn-primary" onclick="salvarEntregador()">💾 Salvar</button>
+  `;
+  document.getElementById('modalGenerico').style.display = 'flex';
+}
+
+async function salvarEntregador() {
+  const nome = document.getElementById('eNome').value.trim();
+  if (!nome) { showToast('Nome é obrigatório.', 'error'); return; }
+  try {
+    await API.post('/entregadores', {
+      nome, veiculo: document.getElementById('eVeiculo').value.trim(),
+      placa: document.getElementById('ePlaca').value.trim(), telefone: document.getElementById('eTel').value.trim()
+    });
+    showToast('Entregador cadastrado!', 'success');
+    fecharModal(); renderEntregadores();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function renderEntregas() {
+  const pc = document.getElementById('pageContent');
+  pc.innerHTML = `<div class="empty-state"><span class="spinner" style="width:32px;height:32px;border-width:3px;"></span></div>`;
+  try {
+    const entregas = await API.get('/entregas');
+    const entregadores = await API.get('/entregadores');
+    
+    window.entregadoresData = entregadores;
+
+    const badges = { 'aguardando': 'badge-yellow', 'em_rota': 'badge-blue', 'entregue': 'badge-green', 'cancelada': 'badge-red' };
+    const nomes = { 'aguardando': 'Aguardando', 'em_rota': 'Em Rota', 'entregue': 'Entregue', 'cancelada': 'Cancelada' };
+
+    pc.innerHTML = `
+      <div class="card">
+        <h3 style="margin-bottom:1rem;">Painel de Entregas</h3>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th># Venda</th><th>Endereço</th><th>Cliente</th><th>Valor</th><th>Entregador</th><th>Status</th><th>Ações</th></tr></thead>
+            <tbody>
+              ${entregas.length ? entregas.map(e => `
+                <tr>
+                  <td><strong>#${e.venda_id}</strong></td>
+                  <td>${e.endereco || '—'}</td>
+                  <td>${e.cliente_nome || '—'}</td>
+                  <td>${fmt.brl(e.total)}</td>
+                  <td>${e.entregador_nome || '—'}</td>
+                  <td><span class="badge ${badges[e.status]}">${nomes[e.status]}</span></td>
+                  <td>
+                    ${e.status === 'aguardando' ? `<button class="btn btn-primary btn-sm" onclick="abrirModalDespachar(${e.id})">Despachar</button>` : ''}
+                    ${e.status === 'em_rota' ? `<button class="btn btn-success btn-sm" onclick="atualizarStatusEntrega(${e.id}, 'entregue')">Marcar Entregue</button>` : ''}
+                  </td>
+                </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted);">Nenhuma entrega pendente.</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  } catch (e) { pc.innerHTML = `<div class="empty-state"><p>Erro ao carregar entregas.</p></div>`; }
+}
+
+function abrirModalDespachar(id) {
+  document.getElementById('modalTitulo').textContent = 'Despachar Entrega';
+  const options = window.entregadoresData.map(e => `<option value="${e.id}">${e.nome}</option>`).join('');
+  document.getElementById('modalCorpo').innerHTML = `
+    <div class="input-group"><label>Selecione o Entregador</label>
+      <select id="despEntregador">
+        <option value="">Selecione...</option>
+        ${options}
+      </select>
+    </div>
+  `;
+  document.getElementById('modalRodape').innerHTML = `
+    <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+    <button class="btn btn-primary" onclick="confirmarDespacho(${id})">✅ Iniciar Rota</button>
+  `;
+  document.getElementById('modalGenerico').style.display = 'flex';
+}
+
+async function confirmarDespacho(id) {
+  const entregador_id = document.getElementById('despEntregador').value;
+  if (!entregador_id) { showToast('Selecione o entregador', 'error'); return; }
+  try {
+    await API.put(\`/entregas/\${id}/status\`, { status: 'em_rota', entregador_id });
+    showToast('Entrega despachada!', 'success');
+    fecharModal(); renderEntregas();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function atualizarStatusEntrega(id, status) {
+  try {
+    await API.put(\`/entregas/\${id}/status\`, { status });
+    showToast('Status atualizado!', 'success');
+    renderEntregas();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+/* ════════════════════════════════════════
+   MENSAGERIA / CRM (FASE 3)
+════════════════════════════════════════ */
+async function renderMensageria() {
+  const pc = document.getElementById('pageContent');
+  pc.innerHTML = `
+    <div class="card" style="max-width:800px; margin:0 auto;">
+      <h3 style="margin-bottom:1rem;">Disparo de Mensagens</h3>
+      
+      <div class="input-group">
+        <label>Público Alvo</label>
+        <select id="msgPublico">
+          <option value="todos">Todos os Clientes Ativos</option>
+          <option value="ouro">Clientes VIPs (> 1000 Pontos)</option>
+          <option value="inativos">Clientes Inativos (30+ dias)</option>
+        </select>
+      </div>
+
+      <div class="input-group">
+        <label>Canal de Disparo</label>
+        <select id="msgCanal">
+          <option value="whatsapp">WhatsApp (Recomendado)</option>
+          <option value="email">E-mail</option>
+          <option value="sms">SMS</option>
+        </select>
+      </div>
+
+      <div class="input-group">
+        <label>Mensagem</label>
+        <textarea id="msgTexto" rows="5" placeholder="Olá {nome}, temos uma promoção especial para você..."></textarea>
+        <small style="color:var(--text-muted);">Use {nome} para personalizar a mensagem com o nome do cliente.</small>
+      </div>
+
+      <button class="btn btn-primary" onclick="dispararMensagem()" id="btnDisparo">🚀 Enviar Mensagens</button>
+    </div>
+  `;
+}
+
+async function dispararMensagem() {
+  const publico = document.getElementById('msgPublico').value;
+  const canal = document.getElementById('msgCanal').value;
+  const mensagem = document.getElementById('msgTexto').value.trim();
+
+  if (!mensagem) { showToast('Escreva a mensagem antes de disparar.', 'error'); return; }
+
+  const btn = document.getElementById('btnDisparo');
+  btn.disabled = true;
+  btn.innerHTML = 'Enviando...';
+
+  try {
+    const res = await API.post('/mensageria/disparo', { publico, canal, mensagem });
+    showToast(\`Mensagem disparada para \${res.count} clientes!\`, 'success');
+    document.getElementById('msgTexto').value = '';
+  } catch (e) {
+    showToast(e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '🚀 Enviar Mensagens';
+  }
+}
+
+/* ── Modal helpers ── */
+function fecharModal() { document.getElementById('modalGenerico').style.display = 'none'; }
+document.getElementById('modalGenerico').addEventListener('click', (e) => { if (e.target === document.getElementById('modalGenerico')) fecharModal(); });
+</script>
+</body>
+</html>

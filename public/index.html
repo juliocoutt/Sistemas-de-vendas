@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VarejoOS — Login</title>
+  <meta name="description" content="Acesse o Sistema de VarejoOS">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="login-page">
+
+  <div class="login-left">
+    <div class="login-text">
+      <h1>Todas as necessidades da sua loja em um só lugar.</h1>
+      <p style="font-size:1.1rem; opacity:0.9;">Gestão de estoque, PDV ágil e CRM inteligente.</p>
+    </div>
+  </div>
+
+  <div class="login-right">
+    <div class="login-logo">
+      <span>🏪 VarejoOS</span>
+      <p>Masuk Aplikasi / Login</p>
+    </div>
+    
+    <div class="login-error" id="loginError">Usuário ou senha inválidos.</div>
+    
+    <form class="login-form" id="formLogin">
+      <div class="input-group">
+        <label>E-mail</label>
+        <input type="email" id="username" placeholder="admin@loja.com" required>
+      </div>
+      <div class="input-group">
+        <label>Senha</label>
+        <input type="password" id="password" placeholder="••••••••••••" required>
+      </div>
+      
+      <div style="display:flex; align-items:center; gap:0.5rem; margin-top:0.5rem;">
+        <input type="checkbox" id="remember" style="width:auto; transform:scale(1.2); cursor:pointer;">
+        <label for="remember" style="font-size:0.85rem; color:var(--text-secondary); cursor:pointer;">Lembrar-me</label>
+      </div>
+
+      <button type="submit" class="btn btn-primary" id="btnLogin">Masuk / Entrar</button>
+    </form>
+    
+    <div style="margin-top:2rem; text-align:center; font-size:0.8rem; color:var(--text-muted);">
+      VarejoOS v3.0 &copy; 2026<br>Feito com ❤️ pela Antigravity
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+</body>
+</html>
