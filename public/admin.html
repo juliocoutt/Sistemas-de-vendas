@@ -259,7 +259,7 @@ API.get('/configuracoes').then(config => {
     const sidebarLogo = document.getElementById('sidebarLogoText');
     if (sidebarLogo) {
       if (config.logo_sistema.startsWith('data:image') || config.logo_sistema.startsWith('http') || config.logo_sistema.startsWith('/')) {
-        sidebarLogo.innerHTML = `<img src="${config.logo_sistema}" alt="Logo" style="max-height: 120px; width: 100%; object-fit: contain; display: block; margin: 0 auto;">`;
+        sidebarLogo.innerHTML = `<img src="${config.logo_sistema}" alt="Logo" style="max-height: 85px; max-width: 100%; width: auto; object-fit: contain; display: block; margin: 0 auto; border-radius: 12px;">`;
       } else {
         sidebarLogo.textContent = config.logo_sistema;
       }
