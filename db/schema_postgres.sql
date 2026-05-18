@@ -81,6 +81,7 @@ CREATE TABLE IF NOT EXISTS vendas (
     loja_id INTEGER NOT NULL REFERENCES lojas(id),
     usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
     caixa_id INTEGER REFERENCES caixas(id),
+    cliente_id INTEGER REFERENCES clientes(id),
     total DECIMAL(10,2) NOT NULL,
     forma_pagamento VARCHAR(50) NOT NULL,
     pagamentos JSONB,
@@ -109,7 +110,8 @@ CREATE TABLE IF NOT EXISTS clientes (
     limite_credito DECIMAL(12,2) DEFAULT 0,
     credito_usado DECIMAL(12,2) DEFAULT 0,
     data_nascimento DATE,
-    segmento VARCHAR(50)
+    segmento VARCHAR(50),
+    saldo_carteira DECIMAL(12,2) DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS comissoes (

@@ -263,8 +263,8 @@ app.post('/api/vendas', async (req, res) => {
     const data = new Date().toISOString();
 
     const vendaRes = await asyncRun(
-      'INSERT INTO vendas (data, loja_id, usuario_id, caixa_id, total, forma_pagamento, pagamentos, desconto, campanha_id, taxa_entrega) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id',
-      [data, loja_id, usuario_id, caixa_id || null, totalFinal, forma_pagamento, pagamentos ? JSON.stringify(pagamentos) : null, desconto || 0, campanha_id || null, valorFrete]);
+      'INSERT INTO vendas (data, loja_id, usuario_id, caixa_id, cliente_id, total, forma_pagamento, pagamentos, desconto, campanha_id, taxa_entrega) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id',
+      [data, loja_id, usuario_id, caixa_id || null, cliente_id || null, totalFinal, forma_pagamento, pagamentos ? JSON.stringify(pagamentos) : null, desconto || 0, campanha_id || null, valorFrete]);
     const venda_id = vendaRes.id;
 
     if (caixa_id) {
@@ -338,6 +338,19 @@ app.post('/api/clientes', async (req, res) => {
     const r = await asyncRun('INSERT INTO clientes (nome, cpf_cnpj, email, telefone, pontos) VALUES ($1,$2,$3,$4,0) RETURNING id',
       [nome, cpf_cnpj, email, telefone]);
     res.status(201).json({ id: r.id, nome });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/clientes/:id', async (req, res) => {
+  try {
+    const { nome, cpf_cnpj, email, telefone, endereco, limite_credito, credito_usado, data_nascimento, segmento, saldo_carteira } = req.body;
+    await asyncRun(`
+      UPDATE clientes SET 
+        nome = $1, cpf_cnpj = $2, email = $3, telefone = $4, endereco = $5,
+        limite_credito = $6, credito_usado = $7, data_nascimento = $8, segmento = $9, saldo_carteira = $10
+      WHERE id = $11
+    `, [nome, cpf_cnpj, email, telefone, endereco || null, parseFloat(limite_credito) || 0, parseFloat(credito_usado) || 0, data_nascimento || null, segmento || null, parseFloat(saldo_carteira) || 0, req.params.id]);
+    res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -793,6 +806,139 @@ app.get('/api/crm/ltv', async (req, res) => {
       GROUP BY c.id, c.nome, c.telefone
       ORDER BY ltv_valor DESC
     `));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── CRM: Oportunidades (Kanban) ──
+app.get('/api/crm/oportunidades', async (req, res) => {
+  try { res.json(await asyncAll('SELECT * FROM crm_oportunidades ORDER BY id DESC')); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/crm/oportunidades', async (req, res) => {
+  try {
+    const { cliente_nome, valor, etapa, descricao } = req.body;
+    const r = await asyncRun('INSERT INTO crm_oportunidades (cliente_nome, valor, etapa, descricao) VALUES ($1,$2,$3,$4) RETURNING id',
+      [cliente_nome, parseFloat(valor) || 0, etapa || 'prospeccao', descricao || '']);
+    res.status(201).json({ id: r.id, cliente_nome });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/crm/oportunidades/:id', async (req, res) => {
+  try {
+    const { cliente_nome, valor, etapa, descricao } = req.body;
+    await asyncRun('UPDATE crm_oportunidades SET cliente_nome = $1, valor = $2, etapa = $3, descricao = $4 WHERE id = $5',
+      [cliente_nome, parseFloat(valor) || 0, etapa, descricao, req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/crm/oportunidades/:id', async (req, res) => {
+  try {
+    await asyncRun('DELETE FROM crm_oportunidades WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── CRM: Tickets (Suporte / SAC) ──
+app.get('/api/crm/tickets', async (req, res) => {
+  try {
+    res.json(await asyncAll('SELECT t.*, c.nome as cliente_nome FROM crm_tickets t LEFT JOIN clientes c ON t.cliente_id = c.id ORDER BY t.id DESC'));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/crm/tickets', async (req, res) => {
+  try {
+    const { cliente_id, assunto, descricao, status, prioridade } = req.body;
+    const dataCriacao = new Date();
+    const slaLimite = new Date();
+    slaLimite.setHours(slaLimite.getHours() + 24); // 24 Horas SLA
+    const r = await asyncRun('INSERT INTO crm_tickets (cliente_id, assunto, descricao, status, prioridade, data_criacao, sla_limite) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id',
+      [cliente_id || null, assunto, descricao || '', status || 'aberto', prioridade || 'media', dataCriacao.toISOString(), slaLimite.toISOString()]);
+    res.status(201).json({ id: r.id, assunto });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/crm/tickets/:id', async (req, res) => {
+  try {
+    const { status, prioridade, descricao } = req.body;
+    await asyncRun('UPDATE crm_tickets SET status = $1, prioridade = $2, descricao = $3 WHERE id = $4', [status, prioridade, descricao, req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/crm/tickets/:id', async (req, res) => {
+  try {
+    await asyncRun('DELETE FROM crm_tickets WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── CRM: Interações ──
+app.get('/api/crm/interacoes/:cliente_id', async (req, res) => {
+  try {
+    res.json(await asyncAll('SELECT * FROM crm_interacoes WHERE cliente_id = $1 ORDER BY data DESC', [req.params.cliente_id]));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/crm/interacoes', async (req, res) => {
+  try {
+    const { cliente_id, tipo, detalhe } = req.body;
+    const r = await asyncRun('INSERT INTO crm_interacoes (cliente_id, tipo, detalhe) VALUES ($1,$2,$3) RETURNING id', [cliente_id, tipo, detalhe]);
+    res.status(201).json({ id: r.id, tipo });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── CRM: Logística Reversa (Devoluções e Trocas) ──
+app.post('/api/crm/devolucoes', async (req, res) => {
+  try {
+    const { venda_id, produto_id, quantidade, motivo } = req.body;
+    if (!venda_id || !produto_id || !quantidade) return res.status(400).json({ error: 'Campos obrigatórios ausentes.' });
+    
+    // Obter dados da venda e produto
+    const venda = await asyncGet('SELECT * FROM vendas WHERE id = $1', [venda_id]);
+    if (!venda) return res.status(404).json({ error: 'Venda não encontrada.' });
+    
+    const item = await asyncGet('SELECT * FROM itens_venda WHERE venda_id = $1 AND produto_id = $2', [venda_id, produto_id]);
+    if (!item) return res.status(404).json({ error: 'Item não encontrado nesta venda.' });
+    
+    if (parseInt(quantidade) > parseInt(item.quantidade)) return res.status(400).json({ error: 'Quantidade a devolver excede quantidade comprada.' });
+    
+    const valorReembolso = parseFloat(item.preco_unitario) * parseInt(quantidade);
+    
+    // 1. Estorna estoque
+    await asyncRun('UPDATE produtos SET estoque_atual = estoque_atual + $1 WHERE id = $2', [quantidade, produto_id]);
+    await asyncRun('INSERT INTO estoque_mov (produto_id, tipo, quantidade, data, observacao) VALUES ($1,$2,$3,$4,$5)',
+      [produto_id, 'entrada', quantidade, new Date().toISOString(), `Devolução Ref. Venda #${venda_id}`]);
+      
+    // 2. Credita saldo na carteira do cliente se houver cliente
+    if (venda.cliente_id) {
+      await asyncRun('UPDATE clientes SET saldo_carteira = saldo_carteira + $1 WHERE id = $2', [valorReembolso, venda.cliente_id]);
+      await asyncRun('INSERT INTO crm_interacoes (cliente_id, tipo, detalhe) VALUES ($1,$2,$3)',
+        [venda.cliente_id, 'visita', `Crédito de ${valorReembolso.toFixed(2)} gerado por devolução da venda #${venda_id}`]);
+    }
+    
+    res.json({ ok: true, valorReembolso });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── CRM: Visão 360º do Cliente ──
+app.get('/api/crm/clientes/360/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const [cliente, compras, faturas, interacoes] = await Promise.all([
+      asyncGet('SELECT * FROM clientes WHERE id = $1', [id]),
+      asyncAll('SELECT v.*, u.nome as vendedor_nome FROM vendas v LEFT JOIN usuarios u ON v.usuario_id = u.id WHERE v.cliente_id = $1 ORDER BY v.data DESC', [id]),
+      asyncAll('SELECT * FROM contas_receber WHERE cliente_id = $1 ORDER BY data_vencimento ASC', [id]),
+      asyncAll('SELECT * FROM crm_interacoes WHERE cliente_id = $1 ORDER BY data DESC', [id])
+    ]);
+    
+    if (!cliente) return res.status(404).json({ error: 'Cliente não encontrado.' });
+    
+    // LTV é o somatório de vendas fechadas
+    const ltv = compras.reduce((acc, c) => acc + parseFloat(c.total), 0);
+    
+    res.json({ cliente, compras, faturas, interacoes, ltv });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

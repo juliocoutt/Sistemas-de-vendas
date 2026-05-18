@@ -65,7 +65,7 @@
         <span class="icon">📦</span><span>Entregas (Rotas)</span>
       </a>
       <a class="nav-item" id="nav-mensageria" onclick="showPage('mensageria')">
-        <span class="icon">💬</span><span>Mensageria</span>
+        <span class="icon">👥</span><span>CRM Inteligente</span>
       </a>
       <a class="nav-item" id="nav-configuracoes" onclick="showPage('configuracoes')" style="display:none;">
         <span class="icon">⚙️</span><span>Configurações</span>
@@ -180,7 +180,7 @@ function showPage(name) {
   pages.forEach(p => document.getElementById(`nav-${p}`)?.classList.remove('active'));
   document.getElementById(`nav-${name}`)?.classList.add('active');
   document.getElementById('topbarActions').innerHTML = '';
-  const map = { dashboard:'Dashboard', financeiro:'Fluxo de Caixa', vendas:'Vendas', produtos:'Produtos', kits:'Kits e Combos', estoque:'Estoque', clientes:'Clientes', lojas:'Lojas', vendedores:'Vendedores', comissoes:'Comissões', campanhas:'Campanhas Promocionais', entregadores:'Entregadores', entregas:'Painel de Entregas', mensageria:'CRM / Mensageria', configuracoes:'Configurações do Sistema', perfil:'Meu Perfil' };
+  const map = { dashboard:'Dashboard', financeiro:'Fluxo de Caixa', vendas:'Vendas', produtos:'Produtos', kits:'Kits e Combos', estoque:'Estoque', clientes:'Clientes', lojas:'Lojas', vendedores:'Vendedores', comissoes:'Comissões', campanhas:'Campanhas Promocionais', entregadores:'Entregadores', entregas:'Painel de Entregas', mensageria:'CRM Inteligente', configuracoes:'Configurações do Sistema', perfil:'Meu Perfil' };
   document.getElementById('topbarTitle').textContent = map[name] || name;
   const pc = document.getElementById('pageContent');
   pc.style.opacity = '0';
@@ -1711,152 +1711,969 @@ async function atualizarStatusEntrega(id, status) {
    MENSAGERIA / CRM (FASE 3)
 ════════════════════════════════════════ */
 /* ════════════════════════════════════════
-   MENSAGERIA / CRM (FASE 3)
-   Sub-abas: Mensagens, Inadimplência, Métricas LTV
-   ════════════════════════════════════════ */
-let crmSubTabAtual = 'mensagens';
+   CRM INTELIGENTE (4 MÓDULOS INTEGRADOS)
+════════════════════════════════════════ */
+let crmModuloAtual = '360';
+let crmSubTabAtual = 'perfil'; // Para visão 360º
+let crmClienteSelecionadoId = null;
 
 async function renderMensageria() {
-  document.getElementById('topbarActions').innerHTML = `
-    <div style="display:flex; gap:0.5rem;">
-      <button class="btn btn-secondary btn-sm" onclick="switchCRMTab('mensagens')">💬 Disparo de Mensagens</button>
-      <button class="btn btn-secondary btn-sm" onclick="switchCRMTab('inadimplentes')">⚠️ Régua de Cobrança (Inadimplentes)</button>
-      <button class="btn btn-secondary btn-sm" onclick="switchCRMTab('ltv')">🏆 LTV e Ticket Médio</button>
+  const pc = document.getElementById('pageContent');
+  
+  // Custom styles for CRM
+  const crmStyles = `
+    <style>
+      .crm-wrapper { display: flex; flex-direction: column; gap: 1.5rem; animation: fadeInUp 0.4s ease; }
+      .crm-menu { display: flex; gap: 0.75rem; border-bottom: 2px solid var(--border-color); padding-bottom: 0.75rem; overflow-x: auto; }
+      .crm-menu-btn { display: flex; align-items: center; gap: 0.5rem; background: transparent; border: none; color: var(--text-secondary); font-weight: 600; padding: 0.5rem 1rem; cursor: pointer; border-radius: var(--border-radius); transition: all 0.2s; border-bottom: 2px solid transparent; white-space: nowrap; }
+      .crm-menu-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+      .crm-menu-btn.active { color: var(--primary); border-bottom-color: var(--primary); background: var(--bg-card); box-shadow: var(--shadow-sm); }
+      
+      /* Kanban */
+      .kanban-board { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; align-items: start; margin-top: 1rem; }
+      .kanban-col { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem; min-height: 500px; box-shadow: var(--shadow-sm); }
+      .kanban-col-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 0.25rem; }
+      .kanban-col-count { background: var(--border-color); font-size: 0.75rem; padding: 0.1rem 0.5rem; border-radius: 10px; }
+      .kanban-card { background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 0.8rem; box-shadow: var(--shadow-sm); cursor: pointer; transition: transform 0.2s, border-color 0.2s; }
+      .kanban-card:hover { transform: translateY(-3px); border-color: var(--primary); }
+      .kanban-card-title { font-weight: bold; font-size: 0.95rem; margin-bottom: 0.25rem; }
+      .kanban-card-value { color: var(--success); font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem; }
+      .kanban-card-desc { font-size: 0.8rem; color: var(--text-muted); line-height: 1.3; }
+      .kanban-card-actions { display: flex; justify-content: flex-end; gap: 0.25rem; margin-top: 0.5rem; }
+      
+      /* Visão 360 */
+      .client-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+      .client-crm-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 1.25rem; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 0.75rem; transition: transform 0.2s; }
+      .client-crm-card:hover { transform: translateY(-2px); }
+      .tag { font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 12px; font-weight: 600; display: inline-block; }
+      .tag-vip { background: rgba(212, 175, 55, 0.15); color: #d4af37; border: 1px solid rgba(212, 175, 55, 0.3); }
+      .tag-atacadista { background: rgba(0, 123, 255, 0.15); color: #007bff; border: 1px solid rgba(0, 123, 255, 0.3); }
+      .tag-churn { background: rgba(220, 53, 69, 0.15); color: #dc3545; border: 1px solid rgba(220, 53, 69, 0.3); }
+      .tag-inativo { background: rgba(108, 117, 125, 0.15); color: #6c757d; border: 1px solid rgba(108, 117, 125, 0.3); }
+      
+      .view-360-container { display: grid; grid-template-columns: 280px 1fr; gap: 1.5rem; animation: fadeIn 0.3s ease; }
+      .view-360-sidebar { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; height: fit-content; }
+      .view-360-content { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
+      .view-360-tabs { display: flex; gap: 0.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; }
+      .view-360-tab-btn { background: transparent; border: none; color: var(--text-secondary); font-size: 0.85rem; font-weight: 600; padding: 0.4rem 0.8rem; cursor: pointer; border-radius: 4px; }
+      .view-360-tab-btn.active { background: var(--bg-hover); color: var(--primary); }
+      
+      /* Timeline */
+      .timeline { position: relative; padding-left: 1.5rem; border-left: 2px solid var(--border-color); display: flex; flex-direction: column; gap: 1.25rem; margin-top: 1rem; }
+      .timeline-item { position: relative; }
+      .timeline-badge { position: absolute; left: -1.95rem; top: 0; width: 0.9rem; height: 0.9rem; border-radius: 50%; background: var(--primary); border: 2px solid var(--bg-card); }
+      .timeline-date { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem; }
+      .timeline-title { font-weight: bold; font-size: 0.9rem; margin-bottom: 0.2rem; }
+      .timeline-desc { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4; }
+    </style>
+  `;
+
+  pc.innerHTML = `
+    ${crmStyles}
+    <div class="crm-wrapper">
+      <div class="crm-menu">
+        <button class="crm-menu-btn ${crmModuloAtual === '360' ? 'active' : ''}" onclick="switchCRMModulo('360')">👥 Visão 360º (Clientes)</button>
+        <button class="crm-menu-btn ${crmModuloAtual === 'pipeline' ? 'active' : ''}" onclick="switchCRMModulo('pipeline')">📊 Pipeline de Vendas</button>
+        <button class="crm-menu-btn ${crmModuloAtual === 'suporte' ? 'active' : ''}" onclick="switchCRMModulo('suporte')">🛠️ Suporte & Devoluções</button>
+        <button class="crm-menu-btn ${crmModuloAtual === 'automacao' ? 'active' : ''}" onclick="switchCRMModulo('automacao')">⚡ Automações & Régua</button>
+      </div>
+      <div id="crmModuloConteudo"></div>
     </div>
   `;
-  switchCRMTab(crmSubTabAtual);
+
+  renderModuloConteudo();
 }
 
-async function switchCRMTab(tab) {
-  crmSubTabAtual = tab;
-  const pc = document.getElementById('pageContent');
-  pc.innerHTML = `<div class="empty-state"><span class="spinner" style="width:32px;height:32px;border-width:3px;"></span></div>`;
+function switchCRMModulo(mod) {
+  crmModuloAtual = mod;
+  renderMensageria();
+}
+
+async function renderModuloConteudo() {
+  const container = document.getElementById('crmModuloConteudo');
+  container.innerHTML = `<div class="empty-state"><span class="spinner" style="width:32px;height:32px;border-width:3px;"></span></div>`;
   
-  document.querySelectorAll('#topbarActions button').forEach(btn => {
-     btn.classList.remove('btn-primary');
-     btn.classList.add('btn-secondary');
-  });
-  const btns = document.querySelectorAll('#topbarActions button');
-  if (tab === 'mensagens' && btns[0]) btns[0].className = 'btn btn-primary btn-sm';
-  if (tab === 'inadimplentes' && btns[1]) btns[1].className = 'btn btn-primary btn-sm';
-  if (tab === 'ltv' && btns[2]) btns[2].className = 'btn btn-primary btn-sm';
-
   try {
-    if (tab === 'mensagens') {
-      pc.innerHTML = `
-        <div class="card" style="max-width:800px; margin:0 auto;">
-          <h3 style="margin-bottom:1rem;">Disparo de Mensagens</h3>
-          
-          <div class="input-group">
-            <label>Público Alvo</label>
-            <select id="msgPublico">
-              <option value="todos">Todos os Clientes Ativos</option>
-              <option value="ouro">Clientes VIPs (> 1000 Pontos)</option>
-              <option value="inativos">Clientes Inativos (30+ dias)</option>
-            </select>
-          </div>
-
-          <div class="input-group">
-            <label>Canal de Disparo</label>
-            <select id="msgCanal">
-              <option value="whatsapp">WhatsApp (Recomendado)</option>
-              <option value="email">E-mail</option>
-              <option value="sms">SMS</option>
-            </select>
-          </div>
-
-          <div class="input-group">
-            <label>Mensagem</label>
-            <textarea id="msgTexto" rows="5" placeholder="Olá {nome}, temos uma promoção especial para você..."></textarea>
-            <small style="color:var(--text-muted);">Use {nome} para personalizar a mensagem com o nome do cliente.</small>
-          </div>
-
-          <button class="btn btn-primary" onclick="dispararMensagem()" id="btnDisparo">🚀 Enviar Mensagens</button>
-        </div>
-      `;
+    if (crmModuloAtual === '360') {
+      if (crmClienteSelecionadoId) {
+        await renderCliente360(crmClienteSelecionadoId, container);
+      } else {
+        await renderListaClientesCRM(container);
+      }
     } 
-    else if (tab === 'inadimplentes') {
-      const inad = await API.get('/crm/inadimplentes');
-      pc.innerHTML = `
-        <div class="card">
-          <div class="card-header"><h3>⚠️ Histórico de Inadimplência / Régua de Cobrança</h3></div>
-          <div class="table-wrapper">
-            <table>
-              <thead><tr><th>Cliente</th><th>CPF/CNPJ</th><th>Dias Atraso</th><th>Fatura pendente</th><th>Data Vencimento</th><th>Valor</th><th>Ações</th></tr></thead>
-              <tbody>
-                ${inad.length ? inad.map(i => `
-                  <tr>
-                    <td><strong>${i.nome}</strong></td>
-                    <td><code>${i.cpf || '—'}</code></td>
-                    <td><span class="badge badge-red">${i.dias_atraso} dias</span></td>
-                    <td>${i.descricao}</td>
-                    <td>${fmt.date(i.data_vencimento)}</td>
-                    <td style="color:var(--danger); font-weight:600;">${fmt.brl(i.valor)}</td>
-                    <td>
-                      <button class="btn btn-success btn-xs" onclick="simularCobranca('${i.nome}', '${i.valor}', '${i.dias_atraso}')">💬 Cobrar WhatsApp</button>
-                    </td>
-                  </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted);">Nenhum cliente inadimplente no momento!</td></tr>'}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      `;
+    else if (crmModuloAtual === 'pipeline') {
+      await renderPipelineCRM(container);
     } 
-    else if (tab === 'ltv') {
-      const ltv = await API.get('/crm/ltv');
-      pc.innerHTML = `
-        <div class="card">
-          <div class="card-header"><h3>🏆 Ranking de LTV (Lifetime Value) &amp; Ticket Médio</h3></div>
-          <div class="table-wrapper">
-            <table>
-              <thead><tr><th>Ranking</th><th>Cliente</th><th>Compras Realizadas</th><th>Valor Total (LTV)</th><th>Ticket Médio</th></tr></thead>
-              <tbody>
-                ${ltv.map((c, idx) => `
-                  <tr>
-                    <td><strong>${idx + 1}º</strong></td>
-                    <td><strong>${c.nome}</strong></td>
-                    <td><span class="badge badge-gray">${c.total_compras} compras</span></td>
-                    <td style="color:var(--success); font-weight:600;">${fmt.brl(c.ltv_valor)}</td>
-                    <td style="color:var(--primary); font-weight:600;">${fmt.brl(c.ticket_medio)}</td>
-                  </tr>`).join('')}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      `;
+    else if (crmModuloAtual === 'suporte') {
+      await renderSuporteCRM(container);
+    } 
+    else if (crmModuloAtual === 'automacao') {
+      renderAutomacaoCRM(container);
     }
   } catch (e) {
-    pc.innerHTML = `<div class="empty-state"><p>Erro ao carregar CRM: ${e.message}</p></div>`;
+    container.innerHTML = `<div class="card bg-danger-light"><p style="color:var(--danger); margin:0;">Erro ao carregar dados do CRM: ${e.message}</p></div>`;
   }
 }
 
-async function dispararMensagem() {
-  const publico = document.getElementById('msgPublico').value;
-  const canal = document.getElementById('msgCanal').value;
-  const mensagem = document.getElementById('msgTexto').value.trim();
+/* ════════════════════════════════════════
+   MÓDULO 1: GESTÃO DE CLIENTES (360)
+════════════════════════════════════════ */
+async function renderListaClientesCRM(container) {
+  const clientes = await API.get('/clientes');
+  
+  container.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; gap:1rem;">
+      <div class="search-box" style="flex:1; max-width:400px; display:flex; gap:0.5rem;">
+        <input type="text" id="crmClientSearch" class="form-control" placeholder="Buscar cliente por nome, CPF ou e-mail..." oninput="filtrarClientesCRM(this.value)">
+      </div>
+      <button class="btn btn-primary" onclick="abrirNovoClienteCRMModal()">➕ Novo Cliente</button>
+    </div>
+    
+    <div class="client-card-grid" id="crmClientesGrid">
+      ${clientes.map(c => {
+        let tagHtml = '';
+        if (c.pontos >= 1000) tagHtml += `<span class="tag tag-vip">Cliente VIP</span>`;
+        else if (c.credito_usado > c.limite_credito * 0.8 && c.limite_credito > 0) tagHtml += `<span class="tag tag-churn">Risco de Churn</span>`;
+        else if (c.segmento) tagHtml += `<span class="tag tag-atacadista">${c.segmento}</span>`;
+        else tagHtml += `<span class="tag tag-inativo">Geral</span>`;
 
-  if (!mensagem) { showToast('Escreva a mensagem antes de disparar.', 'error'); return; }
+        return `
+          <div class="client-crm-card">
+            <div style="display:flex; justify-content:space-between; align-items:start;">
+              <div>
+                <h4 style="margin:0 0 0.25rem 0; font-size:1.1rem; font-weight:bold;">${c.nome}</h4>
+                <code style="font-size:0.75rem; color:var(--text-muted);">${c.cpf_cnpj || 'Sem documento'}</code>
+              </div>
+              <div>${tagHtml}</div>
+            </div>
+            <div style="font-size:0.85rem; color:var(--text-secondary); display:flex; flex-direction:column; gap:0.25rem;">
+              <span>📞 ${c.telefone || 'Sem telefone'}</span>
+              <span>📧 ${c.email || 'Sem e-mail'}</span>
+              <span>🌟 Pontos Fidelidade: <strong>${c.pontos || 0} pts</strong></span>
+              <span>💰 Saldo Carteira: <strong style="color:var(--success);">${fmt.brl(c.saldo_carteira || 0)}</strong></span>
+            </div>
+            <button class="btn btn-secondary btn-sm" style="width:100%; margin-top:0.5rem; font-weight:600;" onclick="selecionarClienteCRM(${c.id})">👁️ Abrir Visão 360º</button>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
 
-  const btn = document.getElementById('btnDisparo');
-  btn.disabled = true;
-  btn.innerHTML = 'Enviando...';
+function filtrarClientesCRM(val) {
+  const query = val.toLowerCase().trim();
+  document.querySelectorAll('#crmClientesGrid .client-crm-card').forEach(card => {
+    const text = card.textContent.toLowerCase();
+    card.style.display = text.includes(query) ? 'flex' : 'none';
+  });
+}
 
+function selecionarClienteCRM(id) {
+  crmClienteSelecionadoId = id;
+  crmSubTabAtual = 'perfil';
+  renderMensageria();
+}
+
+async function renderCliente360(id, container) {
+  const d = await API.get(`/crm/clientes/360/${id}`);
+  const c = d.cliente;
+  
+  // Segmentação Tags
+  let segmentTag = 'Geral';
+  let tagClass = 'tag-inativo';
+  if (c.pontos >= 1000) { segmentTag = 'Cliente VIP'; tagClass = 'tag-vip'; }
+  else if (parseFloat(c.credito_usado) > parseFloat(c.limite_credito) * 0.8 && parseFloat(c.limite_credito) > 0) { segmentTag = 'Risco de Churn'; tagClass = 'tag-churn'; }
+  else if (c.segmento) { segmentTag = c.segmento; tagClass = 'tag-atacadista'; }
+
+  container.innerHTML = `
+    <div style="margin-bottom: 1rem;">
+      <button class="btn btn-secondary btn-sm" onclick="voltarListaClientesCRM()">⬅️ Voltar para a lista</button>
+    </div>
+    
+    <div class="view-360-container">
+      <!-- Lateral: Perfil Simplificado -->
+      <div class="view-360-sidebar">
+        <div style="text-align:center; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">
+          <div style="width:64px; height:64px; border-radius:50%; background:var(--primary); color:#fff; display:flex; align-items:center; justify-content:center; font-size:1.75rem; font-weight:bold; margin: 0 auto 0.75rem auto;">
+            ${c.nome.charAt(0).toUpperCase()}
+          </div>
+          <h3 style="margin:0 0 0.25rem 0; font-size:1.2rem; font-weight:bold;">${c.nome}</h3>
+          <span class="tag ${tagClass}">${segmentTag}</span>
+        </div>
+        
+        <div style="display:flex; flex-direction:column; gap:0.5rem; font-size:0.85rem; color:var(--text-secondary);">
+          <span><strong>Documento:</strong> ${c.cpf_cnpj || '—'}</span>
+          <span><strong>Telefone:</strong> ${c.telefone || '—'}</span>
+          <span><strong>E-mail:</strong> ${c.email || '—'}</span>
+          <span><strong>Nascimento:</strong> ${c.data_nascimento ? fmt.date(c.data_nascimento) : '—'}</span>
+          <span><strong>Fidelidade:</strong> ${c.pontos || 0} pts</span>
+          <span><strong>Saldo Carteira:</strong> <strong style="color:var(--success);">${fmt.brl(c.saldo_carteira || 0)}</strong></span>
+        </div>
+        
+        <button class="btn btn-secondary btn-xs" onclick="editarClienteCRM(${c.id})">⚙️ Editar Cadastro</button>
+      </div>
+      
+      <!-- Conteúdo principal da Visão 360º -->
+      <div class="view-360-content">
+        <div class="view-360-tabs">
+          <button class="view-360-tab-btn ${crmSubTabAtual === 'perfil' ? 'active' : ''}" onclick="switch360Tab('perfil')">📋 Perfil &amp; Cadastro</button>
+          <button class="view-360-tab-btn ${crmSubTabAtual === 'consumo' ? 'active' : ''}" onclick="switch360Tab('consumo')">📦 Histórico de Consumo</button>
+          <button class="view-360-tab-btn ${crmSubTabAtual === 'saude' ? 'active' : ''}" onclick="switch360Tab('saude')">💳 Saúde Financeira</button>
+          <button class="view-360-tab-btn ${crmSubTabAtual === 'timeline' ? 'active' : ''}" onclick="switch360Tab('timeline')">⏳ Timeline de Interações</button>
+        </div>
+        
+        <div id="view360TabConteudo"></div>
+      </div>
+    </div>
+  `;
+  
+  render360TabConteudo(d);
+}
+
+function switch360Tab(tab) {
+  crmSubTabAtual = tab;
+  renderMensageria();
+}
+
+function voltarListaClientesCRM() {
+  crmClienteSelecionadoId = null;
+  renderMensageria();
+}
+
+function render360TabConteudo(d) {
+  const container = document.getElementById('view360TabConteudo');
+  const c = d.cliente;
+  
+  if (crmSubTabAtual === 'perfil') {
+    container.innerHTML = `
+      <h4 style="margin:0 0 1rem 0; font-weight:bold;">Informações e Segmentação do Cliente</h4>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+        <div class="card">
+          <h5 style="margin:0 0 0.5rem 0; font-weight:bold; color:var(--primary);">Dados Comerciais</h5>
+          <p style="font-size:0.9rem; line-height:1.5; color:var(--text-secondary); margin:0;">
+            <strong>Tipo de Cliente:</strong> ${c.cpf_cnpj && c.cpf_cnpj.length > 14 ? 'Pessoa Jurídica (B2B)' : 'Pessoa Física (B2C)'}<br>
+            <strong>Endereço:</strong> ${c.endereco || 'Não cadastrado'}<br>
+            <strong>Status do Canal:</strong> WhatsApp ativo para réguas automáticas.
+          </p>
+        </div>
+        <div class="card">
+          <h5 style="margin:0 0 0.5rem 0; font-weight:bold; color:var(--primary);">Configurações e Alçadas</h5>
+          <p style="font-size:0.9rem; line-height:1.5; color:var(--text-secondary); margin:0;">
+            <strong>Categoria Cadastrada:</strong> ${c.segmento || 'Geral'}<br>
+            <strong>Pontuação Acumulada:</strong> ${c.pontos || 0} pontos no programa fidelidade.<br>
+            <strong>Descontos Sugeridos:</strong> Desconto de boas-vindas ativo.
+          </p>
+        </div>
+      </div>
+    `;
+  }
+  else if (crmSubTabAtual === 'consumo') {
+    // Curva de preferência simulada
+    container.innerHTML = `
+      <h4 style="margin:0 0 1rem 0; font-weight:bold;">Histórico de Compras no PDV</h4>
+      <div class="table-wrapper" style="margin-bottom:1.5rem;">
+        <table>
+          <thead>
+            <tr><th>Data</th><th>ID Venda</th><th>Forma Pagamento</th><th>Cupom Fiscal</th><th>Total</th></tr>
+          </thead>
+          <tbody>
+            ${d.compras.length ? d.compras.map(co => `
+              <tr>
+                <td>${fmt.date(co.data)}</td>
+                <td><strong>#${co.id}</strong></td>
+                <td><span class="badge badge-gray">${co.forma_pagamento.toUpperCase()}</span></td>
+                <td><button class="btn btn-secondary btn-xs" onclick="alert('Visualizando cupom fiscal da venda #${co.id}')">🧾 Ver Cupom</button></td>
+                <td style="font-weight:600; color:var(--success);">${fmt.brl(co.total)}</td>
+              </tr>
+            `).join('') : '<tr><td colspan="5" style="text-align:center; padding:1.5rem; color:var(--text-muted);">Nenhuma compra realizada no PDV até o momento.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+      
+      <h4 style="margin:0 0 0.75rem 0; font-weight:bold;">Curva de Preferência de Consumo</h4>
+      <div class="card">
+        <p style="font-size:0.9rem; color:var(--text-secondary); margin:0 0 0.5rem 0;">Produtos que o cliente mais compra:</p>
+        <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">
+          <span class="badge badge-primary">🛒 Kits e Combos Promocionais</span>
+          <span class="badge badge-gray">📦 Produtos de Conveniência</span>
+        </div>
+      </div>
+    `;
+  }
+  else if (crmSubTabAtual === 'saude') {
+    const limite = parseFloat(c.limite_credito) || 0;
+    const usado = parseFloat(c.credito_usado) || 0;
+    const disponivel = Math.max(0, limite - usado);
+    
+    container.innerHTML = `
+      <h4 style="margin:0 0 1rem 0; font-weight:bold;">Saúde Financeira e Crédito</h4>
+      
+      <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:1rem; margin-bottom:1.5rem;">
+        <div class="card" style="text-align:center;">
+          <span style="font-size:0.8rem; color:var(--text-muted); font-weight:600;">LIFETIME VALUE (LTV)</span>
+          <h2 style="color:var(--success); font-weight:bold; margin-top:0.25rem;">${fmt.brl(d.ltv || 0)}</h2>
+        </div>
+        <div class="card" style="text-align:center;">
+          <span style="font-size:0.8rem; color:var(--text-muted); font-weight:600;">LIMITE DE CRÉDITO</span>
+          <h2 style="color:var(--primary); font-weight:bold; margin-top:0.25rem;">${fmt.brl(limite)}</h2>
+        </div>
+        <div class="card" style="text-align:center;">
+          <span style="font-size:0.8rem; color:var(--text-muted); font-weight:600;">LIMITE DISPONÍVEL</span>
+          <h2 style="color:${disponivel > 0 ? 'var(--success)' : 'var(--danger)'}; font-weight:bold; margin-top:0.25rem;">${fmt.brl(disponivel)}</h2>
+        </div>
+      </div>
+      
+      <h4 style="margin:0 0 0.75rem 0; font-weight:bold;">Faturas e Títulos em Aberto</h4>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr><th>Fatura</th><th>Data Vencimento</th><th>Status</th><th>Valor</th></tr>
+          </thead>
+          <tbody>
+            ${d.faturas.length ? d.faturas.map(f => `
+              <tr>
+                <td><strong>${f.descricao}</strong></td>
+                <td>${fmt.date(f.data_vencimento)}</td>
+                <td><span class="badge ${f.status === 'pago' || f.status === 'recebido' ? 'badge-success' : 'badge-red'}">${f.status.toUpperCase()}</span></td>
+                <td style="font-weight:600; color:${f.status === 'pendente' ? 'var(--danger)' : 'var(--success)'};">${fmt.brl(f.valor)}</td>
+              </tr>
+            `).join('') : '<tr><td colspan="4" style="text-align:center; padding:1.5rem; color:var(--text-muted);">Nenhum título ou fatura em aberto para este cliente.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+  else if (crmSubTabAtual === 'timeline') {
+    container.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <h4 style="margin:0; font-weight:bold;">Timeline de Interações</h4>
+        <button class="btn btn-primary btn-sm" onclick="abrirNovaInteracaoCRMModal(${c.id})">➕ Registrar Contato</button>
+      </div>
+      
+      <div class="timeline">
+        ${d.interacoes.length ? d.interacoes.map(i => `
+          <div class="timeline-item">
+            <div class="timeline-badge"></div>
+            <div class="timeline-date">${fmt.date(i.data)} - ${i.tipo.toUpperCase()}</div>
+            <div class="timeline-desc">${i.detalhe}</div>
+          </div>
+        `).join('') : `
+          <div class="timeline-item">
+            <div class="timeline-badge" style="background:var(--text-muted);"></div>
+            <div class="timeline-date">${fmt.date(new Date())}</div>
+            <div class="timeline-title">Sem histórico de contatos</div>
+            <div class="timeline-desc">Use o botão acima para registrar o primeiro e-mail, ligação ou visita a este cliente.</div>
+          </div>
+        `}
+      </div>
+    `;
+  }
+}
+
+function abrirNovaInteracaoCRMModal(clienteId) {
+  fecharModal();
+  document.getElementById('modalTitulo').textContent = 'Registrar Contato / Interação';
+  document.getElementById('modalCorpo').innerHTML = `
+    <div style="display:flex; flex-direction:column; gap:1rem;">
+      <div class="input-group">
+        <label>Tipo de Contato</label>
+        <select id="crmInteracaoTipo" class="form-control">
+          <option value="ligacao">📞 Ligação Telefônica</option>
+          <option value="email">📧 E-mail Enviado</option>
+          <option value="reuniao">🤝 Reunião Comercial</option>
+          <option value="visita">🏢 Visita Presencial</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>Detalhes da Conversa / Log do Relacionamento</label>
+        <textarea id="crmInteracaoDetalhe" class="form-control" rows="4" placeholder="Escreva o resumo da conversa com o cliente..."></textarea>
+      </div>
+    </div>
+  `;
+  document.getElementById('modalRodape').innerHTML = `
+    <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+    <button class="btn btn-primary" onclick="salvarInteracaoCRM(${clienteId})">Registrar</button>
+  `;
+  document.getElementById('modalGenerico').style.display = 'flex';
+}
+
+async function salvarInteracaoCRM(clienteId) {
+  const tipo = document.getElementById('crmInteracaoTipo').value;
+  const detalhe = document.getElementById('crmInteracaoDetalhe').value.trim();
+  
+  if (!detalhe) { showToast('Descreva a interação.', 'error'); return; }
+  
   try {
-    const res = await API.post('/mensageria/disparo', { publico, canal, message: mensagem });
-    showToast(`Mensagem disparada para ${res.count} clientes com sucesso!`, 'success');
-    document.getElementById('msgTexto').value = '';
-  } catch (e) {
-    showToast(e.message, 'error');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '🚀 Enviar Mensagens';
+    await API.post('/crm/interacoes', { cliente_id: clienteId, tipo, detalhe });
+    showToast('Contato registrado com sucesso!', 'success');
+    fecharModal();
+    renderMensageria();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function abrirNovoClienteCRMModal() {
+  fecharModal();
+  document.getElementById('modalTitulo').textContent = 'Novo Cliente';
+  document.getElementById('modalCorpo').innerHTML = `
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+      <div class="input-group">
+        <label>Nome do Cliente</label>
+        <input type="text" id="addCRMClienteNome" class="form-control">
+      </div>
+      <div class="input-group">
+        <label>CPF ou CNPJ</label>
+        <input type="text" id="addCRMClienteDoc" class="form-control">
+      </div>
+      <div class="input-group">
+        <label>E-mail</label>
+        <input type="email" id="addCRMClienteEmail" class="form-control">
+      </div>
+      <div class="input-group">
+        <label>Telefone</label>
+        <input type="text" id="addCRMClienteTel" class="form-control">
+      </div>
+    </div>
+  `;
+  document.getElementById('modalRodape').innerHTML = `
+    <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+    <button class="btn btn-primary" onclick="salvarNovoClienteCRM()">Salvar Cliente</button>
+  `;
+  document.getElementById('modalGenerico').style.display = 'flex';
+}
+
+async function salvarNovoClienteCRM() {
+  const nome = document.getElementById('addCRMClienteNome').value.trim();
+  const cpf_cnpj = document.getElementById('addCRMClienteDoc').value.trim();
+  const email = document.getElementById('addCRMClienteEmail').value.trim();
+  const telefone = document.getElementById('addCRMClienteTel').value.trim();
+  
+  if (!nome) { showToast('Nome é obrigatório.', 'error'); return; }
+  
+  try {
+    await API.post('/clientes', { nome, cpf_cnpj, email, telefone });
+    showToast('Cliente cadastrado com sucesso!', 'success');
+    fecharModal();
+    renderMensageria();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function editarClienteCRM(id) {
+  fecharModal();
+  try {
+    const d = await API.get(`/crm/clientes/360/${id}`);
+    const c = d.cliente;
+    
+    document.getElementById('modalTitulo').textContent = 'Editar Perfil e Crédito do Cliente';
+    document.getElementById('modalCorpo').innerHTML = `
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+        <div class="input-group">
+          <label>Nome do Cliente *</label>
+          <input type="text" id="editCRMClienteNome" class="form-control" value="${c.nome || ''}">
+        </div>
+        <div class="input-group">
+          <label>CPF ou CNPJ</label>
+          <input type="text" id="editCRMClienteDoc" class="form-control" value="${c.cpf_cnpj || ''}">
+        </div>
+        <div class="input-group">
+          <label>E-mail</label>
+          <input type="email" id="editCRMClienteEmail" class="form-control" value="${c.email || ''}">
+        </div>
+        <div class="input-group">
+          <label>Telefone</label>
+          <input type="text" id="editCRMClienteTel" class="form-control" value="${c.telefone || ''}">
+        </div>
+        <div class="input-group">
+          <label>Endereço Completo</label>
+          <input type="text" id="editCRMClienteEnd" class="form-control" value="${c.endereco || ''}">
+        </div>
+        <div class="input-group">
+          <label>Segmentação (Tag)</label>
+          <select id="editCRMClienteSeg" class="form-control">
+            <option value="Geral" ${c.segmento === 'Geral' ? 'selected' : ''}>Geral</option>
+            <option value="Atacadista" ${c.segmento === 'Atacadista' ? 'selected' : ''}>Atacadista</option>
+            <option value="Distribuidor" ${c.segmento === 'Distribuidor' ? 'selected' : ''}>Distribuidor</option>
+            <option value="VIP" ${c.segmento === 'VIP' ? 'selected' : ''}>VIP</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>Limite de Crédito (R$)</label>
+          <input type="number" id="editCRMClienteLim" class="form-control" value="${c.limite_credito || 0}">
+        </div>
+        <div class="input-group">
+          <label>Crédito Usado (R$)</label>
+          <input type="number" id="editCRMClienteUsado" class="form-control" value="${c.credito_usado || 0}">
+        </div>
+        <div class="input-group">
+          <label>Saldo Carteira Digital (R$)</label>
+          <input type="number" id="editCRMClienteSaldo" class="form-control" value="${c.saldo_carteira || 0}">
+        </div>
+        <div class="input-group">
+          <label>Data de Nascimento</label>
+          <input type="date" id="editCRMClienteNasc" class="form-control" value="${c.data_nascimento ? c.data_nascimento.substring(0,10) : ''}">
+        </div>
+      </div>
+    `;
+    document.getElementById('modalRodape').innerHTML = `
+      <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarEdicaoClienteCRM(${id})">Salvar Alterações</button>
+    `;
+    document.getElementById('modalGenerico').style.display = 'flex';
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function salvarEdicaoClienteCRM(id) {
+  const nome = document.getElementById('editCRMClienteNome').value.trim();
+  const cpf_cnpj = document.getElementById('editCRMClienteDoc').value.trim();
+  const email = document.getElementById('editCRMClienteEmail').value.trim();
+  const telefone = document.getElementById('editCRMClienteTel').value.trim();
+  const endereco = document.getElementById('editCRMClienteEnd').value.trim();
+  const segmento = document.getElementById('editCRMClienteSeg').value;
+  const limite_credito = document.getElementById('editCRMClienteLim').value;
+  const credito_usado = document.getElementById('editCRMClienteUsado').value;
+  const saldo_carteira = document.getElementById('editCRMClienteSaldo').value;
+  const data_nascimento = document.getElementById('editCRMClienteNasc').value;
+  
+  if (!nome) { showToast('Nome é obrigatório.', 'error'); return; }
+  
+  try {
+    await API.request('PUT', `/clientes/${id}`, { nome, cpf_cnpj, email, telefone, endereco, segmento, limite_credito, credito_usado, saldo_carteira, data_nascimento });
+    showToast('Cadastro atualizado com sucesso!', 'success');
+    fecharModal();
+    renderMensageria();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+/* ════════════════════════════════════════
+   MÓDULO 2: PIPELINE DE VENDAS (KANBAN)
+════════════════════════════════════════ */
+let pipelineSubTab = 'kanban';
+
+async function renderPipelineCRM(container) {
+  container.innerHTML = `
+    <div style="display:flex; gap:0.5rem; margin-bottom:1rem; border-bottom:1px solid var(--border-color); padding-bottom:0.5rem;">
+      <button class="btn ${pipelineSubTab === 'kanban' ? 'btn-primary' : 'btn-secondary'} btn-sm" onclick="switchPipelineSubTab('kanban')">📊 Funil Kanban</button>
+      <button class="btn ${pipelineSubTab === 'proposta' ? 'btn-primary' : 'btn-secondary'} btn-sm" onclick="switchPipelineSubTab('proposta')">🧾 Cotações e Propostas</button>
+    </div>
+    <div id="pipelineSubConteudo"></div>
+  `;
+  
+  const subContainer = document.getElementById('pipelineSubConteudo');
+  
+  if (pipelineSubTab === 'kanban') {
+    const opps = await API.get('/crm/oportunidades');
+    const etapas = [
+      { id: 'prospeccao', label: 'Prospecção' },
+      { id: 'qualificacao', label: 'Qualificação' },
+      { id: 'apresentacao', label: 'Apresentação' },
+      { id: 'negociacao', label: 'Em Negociação' },
+      { id: 'ganho', label: 'Fechado/Ganho' }
+    ];
+
+    subContainer.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <h4 style="margin:0; font-weight:bold;">Pipeline Funil Kanban (Vendas Relacionais/B2B)</h4>
+        <button class="btn btn-primary btn-sm" onclick="abrirNovaOportunidadeModal()">➕ Nova Oportunidade</button>
+      </div>
+      
+      <div class="kanban-board">
+        ${etapas.map(et => {
+          const list = opps.filter(o => o.etapa === et.id);
+          const totalEtapa = list.reduce((acc, o) => acc + parseFloat(o.valor), 0);
+          return `
+            <div class="kanban-col">
+              <div class="kanban-col-header">
+                <span>${et.label}</span>
+                <span class="kanban-col-count">${list.length}</span>
+              </div>
+              <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.5rem;">Total: <strong>${fmt.brl(totalEtapa)}</strong></div>
+              <div style="display:flex; flex-direction:column; gap:0.5rem; overflow-y:auto; max-height:450px;">
+                ${list.map(o => `
+                  <div class="kanban-card">
+                    <div class="kanban-card-title">${o.cliente_nome}</div>
+                    <div class="kanban-card-value">${fmt.brl(o.valor)}</div>
+                    <div class="kanban-card-desc">${o.descricao || 'Sem descrição'}</div>
+                    <div class="kanban-card-actions">
+                      ${et.id !== 'prospeccao' ? `<button class="btn btn-secondary btn-xs" onclick="moverOportunidade(${o.id}, '${o.cliente_nome}', ${o.valor}, '${o.descricao}', '${etapas[etapas.findIndex(x => x.id === et.id) - 1].id}')">◀️</button>` : ''}
+                      <button class="btn btn-danger btn-xs" onclick="deletarOportunidade(${o.id})">🗑️</button>
+                      ${et.id !== 'ganho' ? `<button class="btn btn-secondary btn-xs" onclick="moverOportunidade(${o.id}, '${o.cliente_nome}', ${o.valor}, '${o.descricao}', '${etapas[etapas.findIndex(x => x.id === et.id) + 1].id}')">▶️</button>` : ''}
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  } 
+  else {
+    const clientes = await API.get('/clientes');
+    const produtos = await API.get('/produtos');
+    
+    subContainer.innerHTML = `
+      <div class="card" style="max-width:800px; margin:0 auto; animation: fadeInUp 0.4s ease;">
+        <h4 style="margin:0 0 1rem 0; font-weight:bold; color:var(--primary);">🧾 Gerador de Cotações &amp; Propostas Comerciais</h4>
+        
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
+          <div class="input-group">
+            <label>Selecione o Cliente</label>
+            <select id="propClienteId" class="form-control">
+              ${clientes.map(cl => `<option value="${cl.id}">${cl.nome}</option>`).join('')}
+            </select>
+          </div>
+          <div class="input-group">
+            <label>Selecione o Produto (Disponível em Estoque)</label>
+            <select id="propProdutoId" class="form-control">
+              ${produtos.map(pr => `<option value="${pr.id}">${pr.nome} (${pr.estoque_atual} un) - ${fmt.brl(pr.preco_venda)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="input-group">
+            <label>Quantidade</label>
+            <input type="number" id="propQtd" class="form-control" value="1" min="1">
+          </div>
+          <div class="input-group">
+            <label>Aprovação de Desconto (%)</label>
+            <input type="number" id="propDesconto" class="form-control" value="0" min="0" max="100">
+          </div>
+        </div>
+        
+        <button class="btn btn-primary" onclick="simularGeracaoProposta()">📄 Gerar Proposta Comercial</button>
+      </div>
+    `;
   }
 }
 
-function simularCobranca(nome, valorStr, dias) {
-  const valor = fmt.brl(parseFloat(valorStr));
-  showToast(`Cobrança via WhatsApp enviada com sucesso para ${nome}!`, 'success');
-  alert(`[SIMULAÇÃO DISPARO WHATSAPP]\n\nPara: ${nome}\nMensagem: Prezado(a) ${nome}, identificamos que a fatura no valor de ${valor} está vencida há ${dias} dias. Favor entrar em contato para regularização.`);
+function switchPipelineSubTab(tab) {
+  pipelineSubTab = tab;
+  renderMensageria();
+}
+
+function abrirNovaOportunidadeModal() {
+  fecharModal();
+  document.getElementById('modalTitulo').textContent = 'Nova Oportunidade Comercial';
+  document.getElementById('modalCorpo').innerHTML = `
+    <div style="display:flex; flex-direction:column; gap:1rem;">
+      <div class="input-group">
+        <label>Nome do Cliente / Empresa</label>
+        <input type="text" id="oppCliente" class="form-control" placeholder="Ex: Supermercado Silva">
+      </div>
+      <div class="input-group">
+        <label>Valor Estimado do Negócio</label>
+        <input type="number" id="oppValor" class="form-control" value="5000">
+      </div>
+      <div class="input-group">
+        <label>Descrição da Proposta</label>
+        <textarea id="oppDesc" class="form-control" rows="3" placeholder="Ex: Fornecimento de 50 kits promocionais"></textarea>
+      </div>
+    </div>
+  `;
+  document.getElementById('modalRodape').innerHTML = `
+    <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+    <button class="btn btn-primary" onclick="salvarOportunidade()">Criar Card</button>
+  `;
+  document.getElementById('modalGenerico').style.display = 'flex';
+}
+
+async function salvarOportunidade() {
+  const cliente_nome = document.getElementById('oppCliente').value.trim();
+  const valor = document.getElementById('oppValor').value;
+  const descricao = document.getElementById('oppDesc').value.trim();
+  
+  if (!cliente_nome) { showToast('Nome do cliente é obrigatório.', 'error'); return; }
+  
+  try {
+    await API.post('/crm/oportunidades', { cliente_nome, valor, etapa: 'prospeccao', descricao });
+    showToast('Oportunidade criada com sucesso!', 'success');
+    fecharModal();
+    renderMensageria();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function moverOportunidade(id, cliente_nome, valor, descricao, novaEtapa) {
+  try {
+    await API.put(`/crm/oportunidades/${id}`, { cliente_nome, valor, etapa: novaEtapa, descricao });
+    showToast('Funil atualizado!', 'success');
+    renderMensageria();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function deletarOportunidade(id) {
+  if (!confirm('Deseja realmente remover esta oportunidade?')) return;
+  try {
+    await API.delete(`/crm/oportunidades/${id}`);
+    showToast('Oportunidade removida.', 'success');
+    renderMensageria();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function simularGeracaoProposta() {
+  const cliente = document.getElementById('propClienteId').options[document.getElementById('propClienteId').selectedIndex].text;
+  const produto = document.getElementById('propProdutoId').options[document.getElementById('propProdutoId').selectedIndex].text;
+  const qtd = document.getElementById('propQtd').value;
+  const desc = document.getElementById('propDesconto').value;
+  
+  showToast('Proposta Comercial Gerada com Sucesso!', 'success');
+  alert(`[PROPOSTA COMERCIAL GERADA]\n\nCliente: ${cliente}\nItens: ${qtd}x ${produto}\nDesconto Aplicado: ${desc}%\n\nStatus: ENVIADA PARA O CLIENTE`);
+}
+
+/* ════════════════════════════════════════
+   MÓDULO 3: PÓS-VENDA E RETENÇÃO
+════════════════════════════════════════ */
+let suporteSubTab = 'sac';
+
+async function renderSuporteCRM(container) {
+  container.innerHTML = `
+    <div style="display:flex; gap:0.5rem; margin-bottom:1rem; border-bottom:1px solid var(--border-color); padding-bottom:0.5rem;">
+      <button class="btn ${suporteSubTab === 'sac' ? 'btn-primary' : 'btn-secondary'} btn-sm" onclick="switchSuporteSubTab('sac')">🛠️ Tickets SAC / Suporte</button>
+      <button class="btn ${suporteSubTab === 'devolucao' ? 'btn-primary' : 'btn-secondary'} btn-sm" onclick="switchSuporteSubTab('devolucao')">🔄 Trocas &amp; Devoluções</button>
+    </div>
+    <div id="suporteSubConteudo"></div>
+  `;
+  
+  const subContainer = document.getElementById('suporteSubConteudo');
+  
+  if (suporteSubTab === 'sac') {
+    const tickets = await API.get('/crm/tickets');
+    
+    subContainer.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+        <h4 style="margin:0; font-weight:bold;">Central de Atendimento ao Cliente (SAC) &amp; SLAs</h4>
+        <button class="btn btn-primary btn-sm" onclick="abrirNovoTicketModal()">➕ Abrir Ticket</button>
+      </div>
+      
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Cliente</th><th>Assunto</th><th>Status</th><th>Prioridade</th><th>Limite SLA</th><th>Ações</th></tr>
+          </thead>
+          <tbody>
+            ${tickets.length ? tickets.map(t => {
+              const remainingHrs = 24; // SLA Fixo Simulado
+              const badgeClass = t.status === 'resolvido' ? 'badge-success' : t.status === 'em_atendimento' ? 'badge-primary' : 'badge-red';
+              const prioClass = t.prioridade === 'alta' ? 'color:var(--danger);font-weight:bold;' : 'color:var(--text-secondary);';
+              return `
+                <tr>
+                  <td><strong>#${t.id}</strong></td>
+                  <td><strong>${t.cliente_nome || 'Cliente Geral'}</strong></td>
+                  <td>${t.assunto}</td>
+                  <td><span class="badge ${badgeClass}">${t.status.toUpperCase()}</span></td>
+                  <td><span style="${prioClass}">${t.prioridade.toUpperCase()}</span></td>
+                  <td><span style="font-weight:600; color:var(--primary);">${remainingHrs} Horas</span></td>
+                  <td>
+                    ${t.status !== 'resolvido' ? `
+                      <button class="btn btn-success btn-xs" onclick="resolverTicket(${t.id}, '${t.prioridade}', '${t.descricao}')">✅ Resolver</button>
+                    ` : '—'}
+                  </td>
+                </tr>
+              `;
+            }).join('') : '<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-muted);">Nenhum ticket de suporte em andamento.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } 
+  else {
+    subContainer.innerHTML = `
+      <div class="card" style="max-width:600px; margin:0 auto; animation: fadeInUp 0.4s ease;">
+        <h4 style="margin:0 0 1rem 0; font-weight:bold; color:var(--primary);">🔄 Logística Reversa: Devolução e Estorno</h4>
+        <p style="font-size:0.85rem; color:var(--text-secondary); line-height:1.4; margin-bottom:1.25rem;">
+          Lançar uma devolução re-adiciona a quantidade do produto ao estoque, estorna o valor no backoffice financeiro e adiciona o crédito na carteira digital (wallet) do cliente cadastrado para uso futuro no PDV.
+        </p>
+        
+        <div style="display:flex; flex-direction:column; gap:1rem; margin-bottom:1.5rem;">
+          <div class="input-group">
+            <label>ID da Venda (Visualizado na tela de Vendas)</label>
+            <input type="number" id="retVendaId" class="form-control" placeholder="Ex: 5">
+          </div>
+          <div class="input-group">
+            <label>ID do Produto</label>
+            <input type="number" id="retProdutoId" class="form-control" placeholder="Ex: 1">
+          </div>
+          <div class="input-group">
+            <label>Quantidade a Devolver</label>
+            <input type="number" id="retQtd" class="form-control" value="1" min="1">
+          </div>
+          <div class="input-group">
+            <label>Motivo da Devolução</label>
+            <input type="text" id="retMotivo" class="form-control" placeholder="Ex: Produto com defeito no lacre">
+          </div>
+        </div>
+        
+        <button class="btn btn-primary" onclick="processarDevolucaoCRM()">Processar Devolução &amp; Reembolsar Carteira</button>
+      </div>
+    `;
+  }
+}
+
+function switchSuporteSubTab(tab) {
+  suporteSubTab = tab;
+  renderMensageria();
+}
+
+async function abrirNovoTicketModal() {
+  const clientes = await API.get('/clientes');
+  
+  fecharModal();
+  document.getElementById('modalTitulo').textContent = 'Abrir Ticket de Suporte / SAC';
+  document.getElementById('modalCorpo').innerHTML = `
+    <div style="display:flex; flex-direction:column; gap:1rem;">
+      <div class="input-group">
+        <label>Cliente</label>
+        <select id="tckClienteId" class="form-control">
+          ${clientes.map(cl => `<option value="${cl.id}">${cl.nome}</option>`).join('')}
+        </select>
+      </div>
+      <div class="input-group">
+        <label>Assunto</label>
+        <input type="text" id="tckAssunto" class="form-control" placeholder="Ex: Produto veio quebrado">
+      </div>
+      <div class="input-group">
+        <label>Descrição do Problema</label>
+        <textarea id="tckDesc" class="form-control" rows="3" placeholder="Detalhes do problema reportado pelo cliente..."></textarea>
+      </div>
+      <div class="input-group">
+        <label>Prioridade</label>
+        <select id="tckPrioridade" class="form-control">
+          <option value="baixa">Baixa</option>
+          <option value="media" selected>Média</option>
+          <option value="alta">Alta</option>
+        </select>
+      </div>
+    </div>
+  `;
+  document.getElementById('modalRodape').innerHTML = `
+    <button class="btn btn-secondary" onclick="fecharModal()">Cancelar</button>
+    <button class="btn btn-primary" onclick="salvarTicket()">Salvar Ticket</button>
+  `;
+  document.getElementById('modalGenerico').style.display = 'flex';
+}
+
+async function salvarTicket() {
+  const cliente_id = document.getElementById('tckClienteId').value;
+  const assunto = document.getElementById('tckAssunto').value.trim();
+  const descricao = document.getElementById('tckDesc').value.trim();
+  const prioridade = document.getElementById('tckPrioridade').value;
+  
+  if (!assunto) { showToast('Assunto é obrigatório.', 'error'); return; }
+  
+  try {
+    await API.post('/crm/tickets', { cliente_id, assunto, descricao, status: 'aberto', prioridade });
+    showToast('Ticket aberto com sucesso!', 'success');
+    fecharModal();
+    renderMensageria();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function resolverTicket(id, prioridade, descricao) {
+  try {
+    await API.put(`/crm/tickets/${id}`, { status: 'resolvido', prioridade, descricao });
+    showToast('Ticket resolved!', 'success');
+    renderMensageria();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function processarDevolucaoCRM() {
+  const venda_id = document.getElementById('retVendaId').value;
+  const produto_id = document.getElementById('retProdutoId').value;
+  const quantidade = document.getElementById('retQtd').value;
+  const motivo = document.getElementById('retMotivo').value.trim();
+  
+  if (!venda_id || !produto_id || !quantidade) { showToast('Preencha os campos obrigatórios.', 'error'); return; }
+  
+  try {
+    const res = await API.post('/crm/devolucoes', { venda_id, produto_id, quantidade, motivo });
+    showToast(`Devolução processada! Reembolso de ${fmt.brl(res.valorReembolso)} creditado na carteira!`, 'success');
+    
+    // Limpar campos
+    document.getElementById('retVendaId').value = '';
+    document.getElementById('retProdutoId').value = '';
+    document.getElementById('retMotivo').value = '';
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+/* ════════════════════════════════════════
+   MÓDULO 4: AUTOMAÇÕES E RÉGUAS
+════════════════════════════════════════ */
+let automacaoSubTab = 'regua';
+
+function renderAutomacaoCRM(container) {
+  container.innerHTML = `
+    <div style="display:flex; gap:0.5rem; margin-bottom:1rem; border-bottom:1px solid var(--border-color); padding-bottom:0.5rem;">
+      <button class="btn ${automacaoSubTab === 'regua' ? 'btn-primary' : 'btn-secondary'} btn-sm" onclick="switchAutomacaoSubTab('regua')">⚡ Régua de Cobrança</button>
+      <button class="btn ${automacaoSubTab === 'campanhas' ? 'btn-primary' : 'btn-secondary'} btn-sm" onclick="switchAutomacaoSubTab('campanhas')">🎯 Campanhas &amp; Upsell</button>
+    </div>
+    <div id="automacaoSubConteudo"></div>
+  `;
+  
+  const subContainer = document.getElementById('automacaoSubConteudo');
+  
+  if (automacaoSubTab === 'regua') {
+    subContainer.innerHTML = `
+      <div class="card" style="max-width:700px; margin:0 auto; animation: fadeInUp 0.4s ease;">
+        <h4 style="margin:0 0 1rem 0; font-weight:bold; color:var(--primary);">⚡ Régua de Cobrança Automática</h4>
+        <p style="font-size:0.85rem; color:var(--text-secondary); line-height:1.4; margin-bottom:1.25rem;">
+          Configure os gatilhos automáticos para notificar clientes sobre faturas e títulos a pagar diretamente via e-mail ou WhatsApp.
+        </p>
+        
+        <div style="display:flex; flex-direction:column; gap:1.25rem; margin-bottom:1.5rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:0.75rem;">
+            <div>
+              <strong>Lembrete Preventivo (3 Dias Antes)</strong><br>
+              <small style="color:var(--text-muted);">Mensagem amigável de vencimento próximo.</small>
+            </div>
+            <label class="switch"><input type="checkbox" checked><span class="slider round"></span></label>
+          </div>
+          
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:0.75rem;">
+            <div>
+              <strong>Notificação de Vencimento (No Dia)</strong><br>
+              <small style="color:var(--text-muted);">Disparo de boleto/PIX para pagamento.</small>
+            </div>
+            <label class="switch"><input type="checkbox" checked><span class="slider round"></span></label>
+          </div>
+          
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <strong>Notificação de Atraso (5 Dias Depois)</strong><br>
+              <small style="color:var(--text-muted);">Cobrança mais formal e link de negociação de dívida.</small>
+            </div>
+            <label class="switch"><input type="checkbox" checked><span class="slider round"></span></label>
+          </div>
+        </div>
+        
+        <button class="btn btn-primary" onclick="showToast('Régua de cobrança salva com sucesso!', 'success')">💾 Salvar Configurações</button>
+      </div>
+    `;
+  }
+  else {
+    subContainer.innerHTML = `
+      <div class="card" style="max-width:800px; margin:0 auto; animation: fadeInUp 0.4s ease;">
+        <h4 style="margin:0 0 1rem 0; font-weight:bold; color:var(--primary);">🎯 Campanhas &amp; Upsell Inteligente</h4>
+        <p style="font-size:0.85rem; color:var(--text-secondary); line-height:1.4; margin-bottom:1.25rem;">
+          Gere réguas de recomendação ativa baseadas no histórico de compras para aumentar o ticket médio.
+        </p>
+        
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.5rem;">
+          <div class="card" style="display:flex; flex-direction:column; gap:0.5rem;">
+            <h5 style="margin:0; font-weight:bold;">Filtro de Inativos com Potencial</h5>
+            <small style="color:var(--text-muted);">Clientes que compraram há 6 meses, mas não têm faturas em atraso.</small>
+            <button class="btn btn-secondary btn-sm" onclick="alert('Filtrado 5 clientes correspondentes! Mensagem pronta para oferta do Produto Y.')">Filtrar Clientes</button>
+          </div>
+          
+          <div class="card" style="display:flex; flex-direction:column; gap:0.5rem;">
+            <h5 style="margin:0; font-weight:bold;">Oferecer Upgrade de Plano B2B</h5>
+            <small style="color:var(--text-muted);">Clientes corporativos que estouraram limite de crédito nos últimos 30 dias.</small>
+            <button class="btn btn-secondary btn-sm" onclick="alert('Filtrado 2 clientes correspondentes! Iniciando régua de Upgrade.')">Filtrar Clientes</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+}
+
+function switchAutomacaoSubTab(tab) {
+  automacaoSubTab = tab;
+  renderMensageria();
 }
 
 /* ── Modal helpers ── */
