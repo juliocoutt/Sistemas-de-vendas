@@ -440,6 +440,33 @@ app.get('/api/dashboard', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Configurações Dinâmicas (Logo & Banner) ──
+app.get('/api/configuracoes', async (req, res) => {
+  try {
+    const rows = await asyncAll('SELECT chave, valor FROM configuracoes');
+    const config = {};
+    rows.forEach(r => { config[r.chave] = r.valor; });
+    res.json(config);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/configuracoes', async (req, res) => {
+  try {
+    const userRole = req.headers['x-user-role'];
+    if (userRole !== 'admin') {
+      return res.status(403).json({ error: 'Apenas Administradores podem alterar as configurações do sistema.' });
+    }
+    const { logo_sistema, banner_login } = req.body;
+    if (logo_sistema !== undefined) {
+      await asyncRun('INSERT INTO configuracoes (chave, valor) VALUES ($1, $2) ON CONFLICT (chave) DO UPDATE SET valor = $2', ['logo_sistema', logo_sistema]);
+    }
+    if (banner_login !== undefined) {
+      await asyncRun('INSERT INTO configuracoes (chave, valor) VALUES ($1, $2) ON CONFLICT (chave) DO UPDATE SET valor = $2', ['banner_login', banner_login]);
+    }
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.listen(PORT, () => console.log(`🚀 VarejoOS rodando em http://localhost:${PORT}`));
 
 module.exports = app;
