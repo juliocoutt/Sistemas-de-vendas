@@ -453,7 +453,7 @@ app.get('/api/configuracoes', async (req, res) => {
 app.post('/api/configuracoes', async (req, res) => {
   try {
     const userRole = req.headers['x-user-role'];
-    if (userRole !== 'admin') {
+    if (userRole !== 'admin' && userRole !== 'superadmin') {
       return res.status(403).json({ error: 'Apenas Administradores podem alterar as configurações do sistema.' });
     }
     const { logo_sistema, banner_login } = req.body;

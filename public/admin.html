@@ -108,7 +108,7 @@ if (!API.checkAuth()) { /* checkAuth redireciona */ }
 const user = API.getUsuario();
 if (user) {
   document.getElementById('sidebarUser').textContent = `👤 ${user.nome}`;
-  if (user.role === 'admin') {
+  if (user.role === 'admin' || user.role === 'superadmin') {
     const navConf = document.getElementById('nav-configuracoes');
     if (navConf) navConf.style.display = 'flex';
   }
