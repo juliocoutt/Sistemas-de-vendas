@@ -5,7 +5,13 @@ document.addEventListener('DOMContentLoaded', () => {
     .then(config => {
       if (config.logo_sistema) {
         const logoText = document.getElementById('logoText');
-        if (logoText) logoText.textContent = config.logo_sistema;
+        if (logoText) {
+          if (config.logo_sistema.startsWith('data:image') || config.logo_sistema.startsWith('http') || config.logo_sistema.startsWith('/')) {
+            logoText.innerHTML = `<img src="${config.logo_sistema}" alt="Logo" style="max-height: 60px; max-width: 100%; display: block; margin: 0 auto;">`;
+          } else {
+            logoText.textContent = config.logo_sistema;
+          }
+        }
       }
       if (config.banner_login) {
         const loginLeft = document.getElementById('loginLeft');

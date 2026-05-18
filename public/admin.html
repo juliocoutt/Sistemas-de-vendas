@@ -118,7 +118,13 @@ if (user) {
 API.get('/configuracoes').then(config => {
   if (config.logo_sistema) {
     const sidebarLogo = document.getElementById('sidebarLogoText');
-    if (sidebarLogo) sidebarLogo.textContent = config.logo_sistema;
+    if (sidebarLogo) {
+      if (config.logo_sistema.startsWith('data:image') || config.logo_sistema.startsWith('http') || config.logo_sistema.startsWith('/')) {
+        sidebarLogo.innerHTML = `<img src="${config.logo_sistema}" alt="Logo" style="max-height: 35px; max-width: 100%; display: block;">`;
+      } else {
+        sidebarLogo.textContent = config.logo_sistema;
+      }
+    }
   }
 }).catch(err => console.error('Erro ao carregar configurações dinâmicas:', err));
 
@@ -1187,8 +1193,13 @@ async function renderConfiguracoes() {
           </p>
 
           <div class="input-group">
-            <label style="font-weight:600; color:var(--text-primary); margin-bottom:0.4rem; display:block;">Logo do Sistema</label>
-            <input type="text" id="configLogo" value="${config.logo_sistema || ''}" placeholder="Ex: 🏪 VarejoOS" style="width:100%; padding:0.75rem; border:1px solid var(--border-color); border-radius:var(--border-radius);">
+            <label style="font-weight:600; color:var(--text-primary); margin-bottom:0.4rem; display:block;">Logo do Sistema (Texto ou PNG transparente)</label>
+            <div style="display:flex; gap:0.75rem; align-items:center; margin-bottom:0.5rem;">
+              <input type="file" id="configLogoFile" accept="image/png, image/jpeg, image/svg+xml" style="display:none;" onchange="handleLogoUpload(event)">
+              <button class="btn btn-secondary btn-sm" onclick="document.getElementById('configLogoFile').click()" style="padding:0.4rem 0.8rem; font-size:0.85rem;">📤 Upload de Imagem</button>
+              <span id="logoFileName" style="font-size:0.8rem; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:250px;">Nenhum arquivo selecionado</span>
+            </div>
+            <input type="text" id="configLogo" value="${config.logo_sistema || ''}" placeholder="Ex: 🏪 VarejoOS ou código Base64..." style="width:100%; padding:0.75rem; border:1px solid var(--border-color); border-radius:var(--border-radius);">
           </div>
 
           <div class="input-group">
@@ -1235,6 +1246,25 @@ function handleBannerUpload(event) {
   reader.readAsDataURL(file);
 }
 
+function handleLogoUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  if (file.size > 2 * 1024 * 1024) {
+    showToast('A imagem é muito grande. Escolha uma logo de até 2MB.', 'error');
+    return;
+  }
+
+  document.getElementById('logoFileName').textContent = file.name;
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const base64Data = e.target.result;
+    document.getElementById('configLogo').value = base64Data;
+  };
+  reader.readAsDataURL(file);
+}
+
 async function salvarConfiguracoes() {
   const logo = document.getElementById('configLogo').value.trim();
   const banner = document.getElementById('configBanner').value.trim();
@@ -1258,7 +1288,13 @@ async function salvarConfiguracoes() {
     
     // Atualizar em tempo real o menu lateral
     const sidebarLogo = document.getElementById('sidebarLogoText');
-    if (sidebarLogo) sidebarLogo.textContent = logo;
+    if (sidebarLogo) {
+      if (logo.startsWith('data:image') || logo.startsWith('http') || logo.startsWith('/')) {
+        sidebarLogo.innerHTML = `<img src="${logo}" alt="Logo" style="max-height: 35px; max-width: 100%; display: block;">`;
+      } else {
+        sidebarLogo.textContent = logo;
+      }
+    }
     
   } catch (e) {
     showToast(e.message, 'error');
