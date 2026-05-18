@@ -15,7 +15,7 @@
       box-shadow: var(--shadow-sm); z-index: 10;
     }
     .pdv-topbar h1 { font-size: 1.25rem; font-weight: 700; flex: 1; color: var(--text-primary); }
-    .pdv-body { flex: 1; display: grid; grid-template-columns: 1fr 420px; gap: 0; overflow: hidden; }
+    .pdv-body { flex: 1; display: grid; grid-template-columns: 1fr 450px; gap: 0; overflow: hidden; }
     .pdv-left-inner { display: flex; flex-direction: column; gap: 1.5rem; padding: 1.5rem; overflow: hidden; }
     .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; overflow-y: auto; flex: 1; padding-bottom: 2rem; }
     .cart-panel { border-left: 1px solid var(--border); background: var(--bg-surface); display: flex; flex-direction: column; height: 100%; box-shadow: -4px 0 24px rgba(0,0,0,0.03); }
@@ -23,6 +23,10 @@
       .pdv-body { grid-template-columns: 1fr; }
       .cart-panel { border-left: none; border-top: 1px solid var(--border); height: 50vh; }
     }
+    
+    /* Payments List */
+    .payment-list { display:flex; flex-direction:column; gap:0.5rem; margin-bottom: 0.5rem; }
+    .payment-item { display:flex; justify-content:space-between; align-items:center; background: var(--bg-card); padding: 0.5rem; border:1px solid var(--border); border-radius:4px; font-size: 0.85rem;}
   </style>
 </head>
 <body>
@@ -54,7 +58,7 @@
     </div>
 
     <!-- ── Coluna Direita: Carrinho ── -->
-    <div class="cart-panel">
+    <div class="cart-panel" style="overflow-y:auto;">
       <div class="cart-header">
         <h3>🧺 Carrinho</h3>
         <button class="btn btn-ghost btn-sm" onclick="limparCarrinho()">Limpar</button>
@@ -77,17 +81,23 @@
           <span style="font-size:.9rem;color:var(--text-secondary)">Subtotal</span>
           <strong id="cartSubtotal" style="font-size:1rem;color:var(--text-secondary)">R$ 0,00</strong>
         </div>
-        <div class="cart-total" id="cupomRow" style="display:none;color:var(--success);margin-bottom:0.5rem;">
-          <span id="cupomLabel" style="font-size:.9rem;">Desconto</span>
+        <div class="cart-total" id="cupomRow" style="display:none;color:var(--success);margin-bottom:0.25rem;">
+          <span id="cupomLabel" style="font-size:.9rem;">Desconto (Cupom)</span>
           <strong id="cartDesconto" style="font-size:1rem;">- R$ 0,00</strong>
         </div>
+        
+        <div class="cart-total" style="margin-bottom:0.5rem;">
+          <span style="font-size:.9rem;color:var(--text-secondary)">Desconto Manual (R$)</span>
+          <input id="descManualInput" type="number" step="0.01" value="0.00" oninput="renderizarCarrinho()" style="text-align:right; max-width:80px; padding:0.2rem; border-radius:4px; border:1px solid var(--border);">
+        </div>
+
         <div class="cart-total" style="border-top:1px solid var(--border);padding-top:0.5rem;">
-          <span>Total</span>
+          <span>Total a Pagar</span>
           <strong id="cartTotal">R$ 0,00</strong>
         </div>
 
         <div style="margin-bottom:.75rem; border-top:1px solid var(--border); padding-top:.75rem;">
-          <label style="display:block;margin-bottom:0.25rem;font-size:0.85rem;color:var(--text-secondary);">Cliente (Fidelidade / Entrega)</label>
+          <label style="display:block;margin-bottom:0.25rem;font-size:0.85rem;color:var(--text-secondary);">Cliente (Fidelidade / Entrega / Fiado)</label>
           <select id="pdvClienteSelect" style="width:100%;padding:0.4rem; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--bg-card); color:var(--text-primary);" onchange="aoSelecionarCliente()">
             <option value="">Consumidor não identificado</option>
           </select>
@@ -111,22 +121,29 @@
           </div>
         </div>
 
-        <div class="payment-tabs" id="paymentTabs">
-          <div class="pay-tab active" onclick="selectPag('dinheiro', this)">💵 Dinheiro</div>
-          <div class="pay-tab" onclick="selectPag('pix', this)">🔷 PIX</div>
-          <div class="pay-tab" onclick="selectPag('credito', this)">💳 Crédito</div>
-          <div class="pay-tab" onclick="selectPag('debito', this)">💳 Débito</div>
-        </div>
-
-        <div id="trocoSection" style="margin-bottom:.75rem; display:none;">
-          <div class="input-group">
-            <label>Valor recebido (R$)</label>
-            <input id="valorRecebido" type="number" min="0" step="0.01" placeholder="0,00" oninput="calcTroco()">
+        <div style="margin-bottom:.75rem; border-top:1px solid var(--border); padding-top:.75rem;">
+          <label style="display:block;margin-bottom:0.5rem;font-size:0.85rem;color:var(--text-secondary);font-weight:600;">Múltiplos Pagamentos</label>
+          <div class="payment-list" id="paymentList"></div>
+          
+          <div style="display:flex; gap:0.5rem; align-items:center; margin-bottom: 0.5rem;">
+             <select id="pagTipo" style="padding:0.4rem; border-radius:4px; border:1px solid var(--border); flex:1;">
+               <option value="dinheiro">Dinheiro</option>
+               <option value="pix">PIX</option>
+               <option value="credito">Cartão Crédito</option>
+               <option value="debito">Cartão Débito</option>
+               <option value="fiado">Fiado / Crediário</option>
+             </select>
+             <input type="number" id="pagValor" placeholder="0,00" step="0.01" style="padding:0.4rem; border-radius:4px; border:1px solid var(--border); width:80px;">
+             <button class="btn btn-secondary btn-sm" onclick="adicionarPagamento()">Adicionar</button>
           </div>
-          <p id="trocoInfo" style="font-size:.85rem;margin-top:.5rem;color:var(--success);font-weight:600;"></p>
+          
+          <div style="display:flex; justify-content:space-between; font-size: 0.85rem; margin-top:0.5rem;">
+            <span>Falta pagar: <strong id="lblFaltaPagar" style="color:var(--danger)">R$ 0,00</strong></span>
+            <span id="lblTrocoInfo" style="color:var(--success); display:none;">Troco: <strong>R$ 0,00</strong></span>
+          </div>
         </div>
 
-        <button class="btn btn-success btn-lg btn-block" id="btnFinalizar" onclick="finalizarVenda()" disabled>
+        <button class="btn btn-success btn-lg btn-block" id="btnFinalizar" onclick="tentarFinalizarVenda()" disabled>
           ✅ Finalizar Venda
         </button>
       </div>
@@ -134,8 +151,48 @@
   </div>
 </div>
 
+<!-- Modal Abertura de Caixa -->
+<div id="modalAberturaCaixa" class="modal-backdrop" style="display:none; z-index:9999;">
+  <div class="modal" style="width:360px;">
+    <div class="modal-header"><h3>Abrir Caixa</h3></div>
+    <div class="modal-body">
+      <p style="font-size:0.9rem; margin-bottom:1rem; color:var(--text-secondary);">Você precisa abrir o caixa do seu turno para iniciar as vendas.</p>
+      <div class="input-group">
+        <label>Fundo de Troco / Suprimento Inicial (R$)</label>
+        <input type="number" id="caixaSuprimento" step="0.01" value="0.00" placeholder="0,00">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="location.href='admin.html'">Voltar ao Admin</button>
+      <button class="btn btn-primary" onclick="abrirCaixa()">Abrir Caixa</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Senha Gestor (Desconto/Alçada) -->
+<div id="modalSenhaGestor" class="modal-backdrop" style="display:none; z-index:9999;">
+  <div class="modal" style="width:360px;">
+    <div class="modal-header"><h3>Aprovação de Gestor</h3></div>
+    <div class="modal-body">
+      <p style="font-size:0.9rem; margin-bottom:1rem; color:var(--danger);">O desconto solicitado ultrapassa a sua alçada permitida. Solicite a senha de um gestor.</p>
+      <div class="input-group">
+        <label>E-mail do Gestor</label>
+        <input type="email" id="gestorEmail" placeholder="gestor@loja.com">
+      </div>
+      <div class="input-group">
+        <label>Senha do Gestor</label>
+        <input type="password" id="gestorSenha" placeholder="******">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="document.getElementById('modalSenhaGestor').style.display='none'">Cancelar</button>
+      <button class="btn btn-primary" onclick="validarGestorEFinalizar()">Validar e Finalizar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal de sucesso -->
-<div id="modalSucesso" class="modal-backdrop" style="display:none;">
+<div id="modalSucesso" class="modal-backdrop" style="display:none; z-index:9999;">
   <div class="modal" style="width:min(360px,95vw);text-align:center;">
     <div class="modal-body" style="align-items:center;gap:1.25rem;padding:2rem;">
       <div style="font-size:3.5rem;animation:fadeSlideUp .4s ease;">✅</div>

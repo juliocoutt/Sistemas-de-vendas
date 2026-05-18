@@ -214,7 +214,7 @@ app.get('/api/vendas/:id', async (req, res) => {
 
 app.post('/api/vendas', async (req, res) => {
   try {
-    const { loja_id, usuario_id, vendedor_id, forma_pagamento, itens, desconto, campanha_id, cliente_id, pontos_usados, is_delivery, endereco_entrega, taxa_entrega } = req.body;
+    const { loja_id, usuario_id, vendedor_id, forma_pagamento, itens, desconto, campanha_id, cliente_id, pontos_usados, is_delivery, endereco_entrega, taxa_entrega, caixa_id, pagamentos } = req.body;
     if (!itens || itens.length === 0) return res.status(400).json({ error: 'Nenhum item informado.' });
 
     let subtotal = 0;
@@ -250,9 +250,23 @@ app.post('/api/vendas', async (req, res) => {
     const data = new Date().toISOString();
 
     const vendaRes = await asyncRun(
-      'INSERT INTO vendas (data, loja_id, usuario_id, total, forma_pagamento, desconto, campanha_id, taxa_entrega) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id',
-      [data, loja_id, usuario_id, totalFinal, forma_pagamento, desconto || 0, campanha_id || null, valorFrete]);
+      'INSERT INTO vendas (data, loja_id, usuario_id, caixa_id, total, forma_pagamento, pagamentos, desconto, campanha_id, taxa_entrega) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id',
+      [data, loja_id, usuario_id, caixa_id || null, totalFinal, forma_pagamento, pagamentos ? JSON.stringify(pagamentos) : null, desconto || 0, campanha_id || null, valorFrete]);
     const venda_id = vendaRes.id;
+
+    if (caixa_id) {
+      await asyncRun('UPDATE caixas SET total_vendas = total_vendas + $1 WHERE id = $2', [totalFinal, caixa_id]);
+    }
+
+    if (['fiado', 'crediario', 'prazo'].includes((forma_pagamento || '').toLowerCase()) && cliente_id) {
+      const dataVenc = new Date();
+      dataVenc.setDate(dataVenc.getDate() + 30);
+      await asyncRun(
+        'INSERT INTO contas_receber (descricao, cliente_id, valor, data_vencimento, status, venda_id, loja_id) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+        [`Venda a prazo #${venda_id}`, cliente_id, totalFinal, dataVenc.toISOString().split('T')[0], 'pendente', venda_id, loja_id]
+      );
+      await asyncRun('UPDATE clientes SET credito_usado = credito_usado + $1 WHERE id = $2', [totalFinal, cliente_id]);
+    }
 
     for (const item of itens) {
       if (item.is_kit) {
@@ -562,6 +576,209 @@ app.post('/api/configuracoes', async (req, res) => {
       await asyncRun('INSERT INTO configuracoes (chave, valor) VALUES ($1, $2) ON CONFLICT (chave) DO UPDATE SET valor = $2', ['banner_login', banner_login]);
     }
     res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Ecossistema Financeiro ──
+app.post('/api/auth/validate-manager', async (req, res) => {
+  try {
+    const { email, senha } = req.body;
+    const user = await asyncGet("SELECT * FROM usuarios WHERE email = $1 AND senha_hash = $2 AND role IN ('admin', 'superadmin', 'gestor')", [email, senha]);
+    if (!user) return res.status(401).json({ error: 'Credenciais inválidas ou usuário sem permissão de gestor.' });
+    res.json({ ok: true, gestor_id: user.id, nome: user.nome });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/caixas', async (req, res) => {
+  try {
+    const { status, loja_id } = req.query;
+    let sql = 'SELECT c.*, u.nome as usuario_nome FROM caixas c JOIN usuarios u ON c.usuario_id = u.id WHERE 1=1';
+    const params = [];
+    let i = 1;
+    if (status) { sql += ` AND c.status = $${i++}`; params.push(status); }
+    if (loja_id) { sql += ` AND c.loja_id = $${i++}`; params.push(loja_id); }
+    sql += ' ORDER BY c.data_abertura DESC';
+    res.json(await asyncAll(sql, params));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/caixas', async (req, res) => {
+  try {
+    const { loja_id, usuario_id, suprimento } = req.body;
+    const aberto = await asyncGet('SELECT id FROM caixas WHERE usuario_id = $1 AND status = $2', [usuario_id, 'aberto']);
+    if (aberto) return res.status(400).json({ error: 'Usuário já possui um caixa aberto.' });
+    const r = await asyncRun('INSERT INTO caixas (loja_id, usuario_id, data_abertura, suprimento, status) VALUES ($1,$2,$3,$4,$5) RETURNING id',
+      [loja_id, usuario_id, new Date().toISOString(), suprimento || 0, 'aberto']);
+    res.status(201).json({ id: r.id });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/caixas/:id/sangria', async (req, res) => {
+  try {
+    const { usuario_id, valor, motivo } = req.body;
+    const caixa = await asyncGet('SELECT id FROM caixas WHERE id = $1 AND status = $2', [req.params.id, 'aberto']);
+    if (!caixa) return res.status(400).json({ error: 'Caixa não encontrado ou já fechado.' });
+    await asyncRun('INSERT INTO sangrias (caixa_id, usuario_id, valor, motivo) VALUES ($1,$2,$3,$4)', [req.params.id, usuario_id, valor, motivo]);
+    await asyncRun('UPDATE caixas SET total_sangrias = total_sangrias + $1 WHERE id = $2', [valor, req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/caixas/:id/fechar', async (req, res) => {
+  try {
+    const { saldo_informado, observacao } = req.body;
+    const c = await asyncGet('SELECT * FROM caixas WHERE id = $1 AND status = $2', [req.params.id, 'aberto']);
+    if (!c) return res.status(400).json({ error: 'Caixa não encontrado ou já fechado.' });
+    const saldo_esperado = parseFloat(c.suprimento) + parseFloat(c.total_vendas) - parseFloat(c.total_sangrias);
+    const quebra = parseFloat(saldo_informado) - saldo_esperado;
+    await asyncRun('UPDATE caixas SET data_fechamento = $1, saldo_esperado = $2, saldo_informado = $3, quebra = $4, status = $5, observacao = $6 WHERE id = $7',
+      [new Date().toISOString(), saldo_esperado, saldo_informado, quebra, 'fechado', observacao, req.params.id]);
+    res.json({ ok: true, saldo_esperado, quebra });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/notas-entrada', async (req, res) => {
+  try { res.json(await asyncAll('SELECT ne.*, u.nome as usuario_nome FROM notas_entrada ne LEFT JOIN usuarios u ON ne.usuario_id = u.id ORDER BY ne.data_entrada DESC')); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/notas-entrada', async (req, res) => {
+  try {
+    const { numero_nf, fornecedor, data_emissao, valor_total, usuario_id, itens, observacao, loja_id } = req.body;
+    const r = await asyncRun('INSERT INTO notas_entrada (numero_nf, fornecedor, data_emissao, valor_total, usuario_id, observacao) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
+      [numero_nf, fornecedor, data_emissao, valor_total, usuario_id, observacao]);
+    
+    for (const item of itens) {
+      await asyncRun('INSERT INTO itens_nota_entrada (nota_id, produto_id, quantidade, custo_unitario) VALUES ($1,$2,$3,$4)',
+        [r.id, item.produto_id, item.quantidade, item.custo_unitario]);
+      // Atualiza estoque e custo médio
+      const p = await asyncGet('SELECT estoque_atual, custo_medio FROM produtos WHERE id = $1', [item.produto_id]);
+      const estoque_atual = p ? parseInt(p.estoque_atual) : 0;
+      const custo_medio_atual = p && p.custo_medio ? parseFloat(p.custo_medio) : 0;
+      const novo_estoque = estoque_atual + item.quantidade;
+      const novo_custo_medio = ((estoque_atual * custo_medio_atual) + (item.quantidade * item.custo_unitario)) / novo_estoque;
+      
+      await asyncRun('UPDATE produtos SET estoque_atual = $1, custo_medio = $2, custo = $3 WHERE id = $4',
+        [novo_estoque, novo_custo_medio, item.custo_unitario, item.produto_id]);
+      await asyncRun('INSERT INTO estoque_mov (produto_id, tipo, quantidade, data, usuario_id, observacao) VALUES ($1,$2,$3,$4,$5,$6)',
+        [item.produto_id, 'entrada', item.quantidade, new Date().toISOString(), usuario_id, `NF ${numero_nf}`]);
+    }
+    
+    // Gerar conta a pagar para 30 dias (simplificado)
+    const dataVenc = new Date();
+    dataVenc.setDate(dataVenc.getDate() + 30);
+    await asyncRun('INSERT INTO contas_pagar (descricao, fornecedor, valor, data_vencimento, status, nota_entrada_id, loja_id) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+      [`Ref. NF ${numero_nf}`, fornecedor, valor_total, dataVenc.toISOString().split('T')[0], 'pendente', r.id, loja_id || 1]);
+
+    res.status(201).json({ id: r.id });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/contas-pagar', async (req, res) => {
+  try { res.json(await asyncAll("SELECT * FROM contas_pagar ORDER BY status DESC, data_vencimento ASC")); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/contas-pagar/:id/pagar', async (req, res) => {
+  try {
+    await asyncRun("UPDATE contas_pagar SET status = 'pago', data_pagamento = $1 WHERE id = $2", [new Date().toISOString().split('T')[0], req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/contas-receber', async (req, res) => {
+  try { res.json(await asyncAll("SELECT cr.*, c.nome as cliente_nome FROM contas_receber cr LEFT JOIN clientes c ON cr.cliente_id = c.id ORDER BY cr.status DESC, cr.data_vencimento ASC")); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/contas-receber/:id/receber', async (req, res) => {
+  try {
+    await asyncRun("UPDATE contas_receber SET status = 'recebido', data_recebimento = $1 WHERE id = $2", [new Date().toISOString().split('T')[0], req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/financeiro/dre', async (req, res) => {
+  try {
+    const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+    const receitaBruta = await asyncGet("SELECT COALESCE(SUM(total + desconto), 0) as valor FROM vendas WHERE data >= $1", [inicioMes]);
+    const descontos = await asyncGet("SELECT COALESCE(SUM(desconto), 0) as valor FROM vendas WHERE data >= $1", [inicioMes]);
+    const receitaLiquida = parseFloat(receitaBruta.valor) - parseFloat(descontos.valor);
+    
+    // CMV = soma do custo_medio * quantidade vendida
+    const cmv = await asyncGet("SELECT COALESCE(SUM(iv.quantidade * p.custo_medio), 0) as valor FROM itens_venda iv JOIN vendas v ON iv.venda_id = v.id JOIN produtos p ON iv.produto_id = p.id WHERE v.data >= $1 AND p.custo_medio IS NOT NULL", [inicioMes]);
+    const lucroBruto = receitaLiquida - parseFloat(cmv.valor);
+    
+    const despesas = await asyncGet("SELECT COALESCE(SUM(valor), 0) as valor FROM despesas WHERE data >= $1", [inicioMes]);
+    const lucroLiquido = lucroBruto - parseFloat(despesas.valor);
+    
+    res.json({
+      receitaBruta: parseFloat(receitaBruta.valor),
+      descontos: parseFloat(descontos.valor),
+      receitaLiquida,
+      cmv: parseFloat(cmv.valor),
+      lucroBruto,
+      despesasOperacionais: parseFloat(despesas.valor),
+      lucroLiquido
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/estoque/curva-abc', async (req, res) => {
+  try {
+    const produtos = await asyncAll(`
+      SELECT p.id, p.nome, p.sku, 
+             COALESCE(SUM(iv.quantidade), 0) as qtd_vendida,
+             COALESCE(SUM(iv.quantidade * iv.preco_unitario), 0) as faturamento,
+             COALESCE(SUM(iv.quantidade * (iv.preco_unitario - COALESCE(p.custo_medio, p.custo, 0))), 0) as margem_lucro
+      FROM produtos p
+      LEFT JOIN itens_venda iv ON p.id = iv.produto_id
+      GROUP BY p.id, p.nome, p.sku
+      ORDER BY margem_lucro DESC
+    `);
+    
+    // Calcular A (top 20%), B (30%), C (50%)
+    let faturamentoTotal = produtos.reduce((acc, p) => acc + parseFloat(p.faturamento), 0);
+    let margemTotal = produtos.reduce((acc, p) => acc + parseFloat(p.margem_lucro), 0);
+    
+    let accMargem = 0;
+    const curva = produtos.map(p => {
+      accMargem += parseFloat(p.margem_lucro);
+      const perc = margemTotal > 0 ? accMargem / margemTotal : 0;
+      let classe = 'C';
+      if (perc <= 0.8) classe = 'A';
+      else if (perc <= 0.95) classe = 'B';
+      return { ...p, classe };
+    });
+    
+    res.json(curva);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/crm/inadimplentes', async (req, res) => {
+  try {
+    res.json(await asyncAll(`
+      SELECT cr.*, c.nome, c.telefone, c.email 
+      FROM contas_receber cr 
+      JOIN clientes c ON cr.cliente_id = c.id 
+      WHERE cr.status = 'pendente' AND cr.data_vencimento < CURRENT_DATE
+      ORDER BY cr.data_vencimento ASC
+    `));
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/crm/ltv', async (req, res) => {
+  try {
+    res.json(await asyncAll(`
+      SELECT c.id, c.nome, c.telefone,
+             COUNT(v.id) as total_compras,
+             COALESCE(SUM(v.total), 0) as ltv_valor,
+             COALESCE(SUM(v.total) / NULLIF(COUNT(v.id), 0), 0) as ticket_medio
+      FROM clientes c
+      LEFT JOIN vendas v ON c.id = v.cliente_id
+      GROUP BY c.id, c.nome, c.telefone
+      ORDER BY ltv_valor DESC
+    `));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
