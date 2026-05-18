@@ -771,7 +771,8 @@ app.get('/api/estoque/curva-abc', async (req, res) => {
 app.get('/api/crm/inadimplentes', async (req, res) => {
   try {
     res.json(await asyncAll(`
-      SELECT cr.*, c.nome, c.telefone, c.email 
+      SELECT cr.*, c.nome, c.telefone, c.email,
+             (CURRENT_DATE - cr.data_vencimento) AS dias_atraso
       FROM contas_receber cr 
       JOIN clientes c ON cr.cliente_id = c.id 
       WHERE cr.status = 'pendente' AND cr.data_vencimento < CURRENT_DATE
