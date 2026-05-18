@@ -3,149 +3,676 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VarejoOS — PDV</title>
-  <meta name="description" content="Ponto de Venda — registre vendas rapidamente com scanner de produtos.">
+  <title>VarejoOS — PDV Premium</title>
+  <meta name="description" content="Ponto de Venda moderno com layout clean e de alta velocidade.">
   <link rel="stylesheet" href="css/style.css">
+  <!-- Pacote de Ícones Premium Modernos (Lucide Icons) -->
+  <script src="https://unpkg.com/lucide@latest"></script>
   <style>
-    body { overflow: hidden; background: var(--bg-base); }
-    .pdv-page { display: flex; flex-direction: column; height: 100vh; }
-    .pdv-topbar {
-      background: var(--bg-surface); border-bottom: 1px solid var(--border);
-      padding: 1rem 1.5rem; display: flex; align-items: center; gap: 1rem;
-      box-shadow: var(--shadow-sm); z-index: 10;
+    body {
+      overflow: hidden;
+      background: #f1f7f6;
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      padding: 0;
+      height: 100vh;
     }
-    .pdv-topbar h1 { font-size: 1.25rem; font-weight: 700; flex: 1; color: var(--text-primary); }
-    .pdv-body { flex: 1; display: grid; grid-template-columns: 1fr 450px; gap: 0; overflow: hidden; }
-    .pdv-left-inner { display: flex; flex-direction: column; gap: 1.5rem; padding: 1.5rem; overflow: hidden; }
-    .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; overflow-y: auto; flex: 1; padding-bottom: 2rem; }
-    .cart-panel { border-left: 1px solid var(--border); background: var(--bg-surface); display: flex; flex-direction: column; height: 100%; box-shadow: -4px 0 24px rgba(0,0,0,0.03); }
-    @media (max-width: 700px) {
-      .pdv-body { grid-template-columns: 1fr; }
-      .cart-panel { border-left: none; border-top: 1px solid var(--border); height: 50vh; }
+    .pdv-container {
+      display: grid;
+      grid-template-columns: 1fr 400px 70px;
+      grid-template-rows: 60px 1fr;
+      height: 100vh;
+      overflow: hidden;
     }
     
-    /* Payments List */
-    .payment-list { display:flex; flex-direction:column; gap:0.5rem; margin-bottom: 0.5rem; }
-    .payment-item { display:flex; justify-content:space-between; align-items:center; background: var(--bg-card); padding: 0.5rem; border:1px solid var(--border); border-radius:4px; font-size: 0.85rem;}
+    /* ── Topbar (Cabeçalho Superior) ── */
+    .pdv-topbar {
+      grid-column: 1 / 4;
+      grid-row: 1 / 2;
+      background: #0b2b26; /* Deep forest green */
+      color: #ffffff;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding: 0 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 100;
+    }
+    .pdv-topbar-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      letter-spacing: -0.5px;
+    }
+    .pdv-topbar-search {
+      flex: 0 1 450px;
+      position: relative;
+    }
+    .pdv-topbar-search input {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: var(--radius-sm);
+      color: #ffffff;
+      padding: 0.5rem 1rem 0.5rem 2.5rem;
+      font-size: 0.875rem;
+      transition: all 0.2s;
+      width: 100%;
+    }
+    .pdv-topbar-search input:focus {
+      background: rgba(255,255,255,0.25);
+      border-color: var(--sidebar-active);
+      box-shadow: none;
+    }
+    .pdv-topbar-search input::placeholder {
+      color: rgba(255,255,255,0.6);
+    }
+    .pdv-topbar-search .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: rgba(255,255,255,0.6);
+      width: 16px;
+      height: 16px;
+    }
+    .pdv-topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    
+    /* ── Ledger / Transações (Coluna Esquerda) ── */
+    .pdv-ledger {
+      grid-column: 1 / 2;
+      grid-row: 2 / 3;
+      display: flex;
+      flex-direction: column;
+      background: #ffffff;
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+      padding: 1.5rem;
+    }
+    
+    /* Tabs Navigation */
+    .ledger-tabs {
+      display: flex;
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 1rem;
+      gap: 1.5rem;
+    }
+    .ledger-tab {
+      padding: 0.75rem 0.5rem;
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+      user-select: none;
+    }
+    .ledger-tab.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+    
+    /* Items Scrollable List */
+    .ledger-content {
+      flex: 1;
+      overflow-y: auto;
+      margin-bottom: 1.25rem;
+      padding-right: 0.25rem;
+    }
+    .cart-items {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .cart-item {
+      display: grid;
+      grid-template-columns: 1fr 140px 100px 40px;
+      align-items: center;
+      padding: 0.85rem 1rem;
+      background: var(--bg-base);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      transition: all 0.2s;
+    }
+    .cart-item-name {
+      font-weight: 500;
+      color: var(--text-primary);
+      font-size: 0.9rem;
+    }
+    .cart-qty-ctrl {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      justify-self: center;
+    }
+    .qty-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(22,56,50,0.1);
+      color: var(--primary);
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+    .qty-btn:hover {
+      background: rgba(22,56,50,0.2);
+    }
+    .qty-value {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--text-primary);
+      min-width: 20px;
+      text-align: center;
+    }
+    .cart-item-price {
+      font-weight: 600;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      text-align: right;
+    }
+    .cart-remove {
+      background: transparent;
+      border: none;
+      color: var(--danger);
+      cursor: pointer;
+      font-size: 0.95rem;
+      justify-self: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+    }
+    .cart-remove:hover {
+      opacity: 1;
+    }
+    
+    /* Bottom Panels (Customer Profile and Totals calculations) */
+    .ledger-footer {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 1.25rem;
+      border-top: 1px solid var(--border);
+      padding-top: 1.25rem;
+    }
+    
+    /* Customer Card */
+    .customer-card {
+      background: var(--bg-base);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 140px;
+    }
+    .customer-profile-info {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .customer-avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--border);
+      background: #ffffff;
+    }
+    .customer-details {
+      flex: 1;
+    }
+    .customer-name {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--text-primary);
+    }
+    
+    /* Totals Calculations */
+    .totals-card {
+      background: var(--bg-base);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 140px;
+    }
+    .totals-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.25rem;
+    }
+    .totals-row strong {
+      color: var(--text-primary);
+    }
+    .grand-total-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border-top: 1px dashed var(--border);
+      padding-top: 0.5rem;
+      margin-top: 0.25rem;
+    }
+    .grand-total-label {
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: var(--text-primary);
+      text-transform: uppercase;
+    }
+    .grand-total-value {
+      font-weight: 800;
+      font-size: 1.65rem;
+      color: #24a148;
+      line-height: 1;
+    }
+    
+    /* ── Action Grid (Coluna do Meio) ── */
+    .pdv-actions {
+      grid-column: 2 / 3;
+      grid-row: 2 / 3;
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 1.5rem;
+      overflow-y: auto;
+    }
+    .action-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+    .action-tile {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 1rem;
+      border-radius: var(--radius-sm);
+      aspect-ratio: 1.35;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 1px solid var(--border);
+      text-align: left;
+    }
+    .action-tile:hover {
+      transform: translateY(-2px);
+    }
+    .action-tile-icon {
+      width: 22px;
+      height: 22px;
+      margin-bottom: 0.5rem;
+    }
+    .action-tile-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      line-height: 1.2;
+    }
+    /* Tile Green styling */
+    .action-tile.tile-green {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+    }
+    .action-tile.tile-green:hover {
+      background: var(--primary-hover);
+    }
+    .action-tile.tile-green .action-tile-icon {
+      color: var(--sidebar-active);
+    }
+    /* Tile Grey styling */
+    .action-tile.tile-grey {
+      background: var(--bg-base);
+      color: var(--text-primary);
+      border-color: var(--border);
+    }
+    .action-tile.tile-grey:hover {
+      background: var(--bg-hover);
+      border-color: var(--text-secondary);
+    }
+    .action-tile.tile-grey .action-tile-icon {
+      color: var(--text-secondary);
+    }
+    
+    /* Payments block inside Action area */
+    .payment-section {
+      border-top: 1px solid var(--border);
+      padding-top: 1rem;
+      margin-top: auto;
+    }
+    .payment-inputs {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+      align-items: center;
+    }
+    
+    /* ── Far-Right Vertical Strip ── */
+    .pdv-vertical-strip {
+      grid-column: 3 / 4;
+      grid-row: 2 / 3;
+      background: #0b2b26; /* Deep forest green */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1.5rem 0;
+      gap: 1.5rem;
+      z-index: 50;
+    }
+    .strip-button {
+      background: transparent;
+      border: none;
+      color: rgba(255,255,255,0.6);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.35rem;
+      cursor: pointer;
+      width: 100%;
+      padding: 0.5rem 0;
+      transition: all 0.2s;
+      border-right: 3px solid transparent;
+    }
+    .strip-button:hover,
+    .strip-button.active {
+      color: #ffffff;
+    }
+    .strip-button.active {
+      border-right-color: var(--sidebar-active);
+    }
+    .strip-button svg {
+      width: 20px;
+      height: 20px;
+      stroke-width: 2px;
+    }
+    .strip-button span {
+      font-size: 0.6rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    
+    /* ── Sliding Products Drawer ── */
+    .products-drawer {
+      position: fixed;
+      top: 60px;
+      right: 70px;
+      width: 480px;
+      height: calc(100vh - 60px);
+      background: var(--bg-surface);
+      box-shadow: -8px 0 24px rgba(0,0,0,0.1);
+      z-index: 500;
+      transform: translateX(100%);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid var(--border);
+    }
+    .products-drawer.open {
+      transform: translateX(0);
+    }
+    .drawer-header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .drawer-header h3 {
+      font-weight: 700;
+      color: var(--text-primary);
+      font-size: 1rem;
+    }
+    .drawer-body {
+      flex: 1;
+      padding: 1.5rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+    
+    /* Utility Animations */
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
   </style>
 </head>
 <body>
-<div class="pdv-page">
+<div class="pdv-container">
 
   <!-- Topbar do PDV -->
-  <div class="pdv-topbar">
-    <h1>🛒 PDV — Ponto de Venda</h1>
-    <div style="display:flex; align-items:center; gap:0.5rem; margin-right:1rem;">
-      <span style="font-size:0.8rem; font-weight:600; color:var(--text-secondary);">Vendedor:</span>
-      <select id="pdvVendedorSelect" style="padding:0.4rem; font-size:0.85rem; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--bg-card); color:var(--text-primary); min-width:140px; outline:none;"></select>
+  <header class="pdv-topbar">
+    <div class="pdv-topbar-title">
+      <i data-lucide="store" style="width:20px; height:20px; color:var(--sidebar-active);"></i>
+      <span>VarejoOS — PDV Premium</span>
     </div>
-    <span id="pdvVendedor" class="badge badge-blue" style="display:none;"></span>
-    <button class="btn btn-secondary btn-sm" onclick="location.href='admin.html'">⬅ Admin</button>
-    <button class="btn btn-ghost btn-sm" onclick="API.logout()">Sair</button>
-  </div>
-
-  <div class="pdv-body">
-
-    <!-- ── Coluna Esquerda: Produtos ── -->
-    <div class="pdv-left-inner">
-      <div class="product-search">
-        <input id="searchInput" type="text" placeholder="🔍 Buscar produto por nome, SKU ou categoria..." oninput="filtrarProdutos(this.value)">
-        <div class="filter-bar" id="filterCats" style="margin-bottom:0;flex-wrap:nowrap;overflow-x:auto;"></div>
+    
+    <!-- Barra de busca no cabeçalho centralizado (igual ao print) -->
+    <div class="pdv-topbar-search">
+      <i data-lucide="search" class="search-icon"></i>
+      <input id="searchInput" type="text" placeholder="Buscar produto por nome, código SKU ou categoria..." oninput="filtrarProdutos(this.value)">
+    </div>
+    
+    <div class="pdv-topbar-actions">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <span style="font-size:0.75rem; font-weight:700; color:rgba(255,255,255,0.75);">Colaborador:</span>
+        <select id="pdvVendedorSelect" style="padding:0.35rem 0.5rem; font-size:0.8rem; border-radius:var(--radius-sm); border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.1); color:#ffffff; min-width:140px; outline:none; cursor:pointer;"></select>
       </div>
-      <div class="products-grid" id="productsGrid">
-        <div class="empty-state"><div class="es-icon">⏳</div><p>Carregando produtos...</p></div>
+      <span id="pdvVendedor" class="badge badge-blue" style="display:none;"></span>
+      <button class="btn btn-secondary btn-sm" onclick="location.href='admin.html'" style="display:flex; align-items:center; gap:0.25rem; padding:0.35rem 0.75rem;"><i data-lucide="arrow-left" style="width:14px; height:14px;"></i> Voltar Admin</button>
+      <button class="btn btn-ghost btn-sm" onclick="API.logout()" style="color:#ffffff;">Sair</button>
+    </div>
+  </header>
+
+  <!-- ── Coluna Esquerda: Ledger / Venda Ativa ── -->
+  <main class="pdv-ledger">
+    <!-- Tabs: Lines e Payments (igual ao print) -->
+    <div class="ledger-tabs">
+      <div class="ledger-tab active" id="tabLines" onclick="changeLedgerTab('lines')">Itens da Venda</div>
+      <div class="ledger-tab" id="tabPayments" onclick="changeLedgerTab('payments')">Pagamentos Recebidos</div>
+    </div>
+    
+    <!-- Ledger scrollable content -->
+    <div class="ledger-content">
+      <!-- Aba de Linhas (Ativa) -->
+      <div id="ledgerLinesContainer">
+        <div class="cart-items" id="cartItems">
+          <div class="empty-state" id="cartEmpty" style="padding:4rem 0;">
+            <div class="es-icon" style="font-size:3rem; margin-bottom:1rem;">🛒</div>
+            <p style="color:var(--text-secondary); font-weight:500;">Nenhum produto adicionado à venda</p>
+            <small style="color:var(--text-muted);">Clique no menu "Produtos" ao lado para abrir o catálogo</small>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Aba de Pagamentos (Oculta por padrão) -->
+      <div id="ledgerPaymentsContainer" style="display:none;">
+        <div class="payment-list" id="paymentList" style="display:flex; flex-direction:column; gap:0.5rem;">
+          <div class="empty-state" style="padding:4rem 0;">
+            <div class="es-icon" style="font-size:3rem; margin-bottom:1rem;">💳</div>
+            <p style="color:var(--text-secondary); font-weight:500;">Nenhum pagamento registrado</p>
+            <small style="color:var(--text-muted);">Use o painel de pagamentos ao lado para adicionar parcelas</small>
+          </div>
+        </div>
       </div>
     </div>
-
-    <!-- ── Coluna Direita: Carrinho ── -->
-    <div class="cart-panel" style="overflow-y:auto;">
-      <div class="cart-header">
-        <h3>🧺 Carrinho</h3>
-        <button class="btn btn-ghost btn-sm" onclick="limparCarrinho()">Limpar</button>
-      </div>
-
-      <div class="cart-items" id="cartItems">
-        <div class="empty-state" id="cartEmpty">
-          <div class="es-icon">🛒</div>
-          <p>Nenhum item ainda</p>
-        </div>
-      </div>
-
-      <div class="cart-footer">
-        <div class="cart-cupom" style="display:flex;gap:0.5rem;margin-bottom:1rem;">
-          <input id="cupomInput" type="text" placeholder="Cupom de desconto" style="text-transform:uppercase;flex:1;">
-          <button class="btn btn-secondary btn-sm" onclick="aplicarCupom()">Aplicar</button>
-        </div>
-
-        <div class="cart-total" style="margin-bottom:0.25rem;">
-          <span style="font-size:.9rem;color:var(--text-secondary)">Subtotal</span>
-          <strong id="cartSubtotal" style="font-size:1rem;color:var(--text-secondary)">R$ 0,00</strong>
-        </div>
-        <div class="cart-total" id="cupomRow" style="display:none;color:var(--success);margin-bottom:0.25rem;">
-          <span id="cupomLabel" style="font-size:.9rem;">Desconto (Cupom)</span>
-          <strong id="cartDesconto" style="font-size:1rem;">- R$ 0,00</strong>
+    
+    <!-- Ledger Footer (Perfil do Cliente & Totais consolidado - igual ao print) -->
+    <footer class="ledger-footer">
+      <!-- Painel Esquerdo: Cliente -->
+      <div class="customer-card">
+        <div class="customer-profile-info">
+          <img id="customerAvatar" class="customer-avatar" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjY2NjIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PGNpcmNsZSBjeD0iMTIiIGN5PSI4IiByPSI1Ii8+PHBhdGggZD0iTTIwIDIxYy0xLjI1LTQuNS00LjI1LTgtOC04cy02Ljc1IDMuNS04IDgiLz48L3N2Zz4=">
+          <div class="customer-details">
+            <label style="display:block; font-size:0.7rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:0.15rem;">Cliente / Fidelidade</label>
+            <select id="pdvClienteSelect" style="width:100%; padding:0.25rem 0.5rem; border-radius:4px; border:1px solid var(--border); background:#ffffff; color:var(--text-primary); font-size:0.8rem; font-weight:600;" onchange="aoSelecionarCliente()">
+              <option value="">Consumidor não identificado</option>
+            </select>
+          </div>
         </div>
         
-        <div class="cart-total" style="margin-bottom:0.5rem;">
-          <span style="font-size:.9rem;color:var(--text-secondary)">Desconto Manual (R$)</span>
-          <input id="descManualInput" type="number" step="0.01" value="0.00" oninput="renderizarCarrinho()" style="text-align:right; max-width:80px; padding:0.2rem; border-radius:4px; border:1px solid var(--border);">
-        </div>
-
-        <div class="cart-total" style="border-top:1px solid var(--border);padding-top:0.5rem;">
-          <span>Total a Pagar</span>
-          <strong id="cartTotal">R$ 0,00</strong>
-        </div>
-
-        <div style="margin-bottom:.75rem; border-top:1px solid var(--border); padding-top:.75rem;">
-          <label style="display:block;margin-bottom:0.25rem;font-size:0.85rem;color:var(--text-secondary);">Cliente (Fidelidade / Entrega / Fiado)</label>
-          <select id="pdvClienteSelect" style="width:100%;padding:0.4rem; border-radius:var(--radius-sm); border:1px solid var(--border); background:var(--bg-card); color:var(--text-primary);" onchange="aoSelecionarCliente()">
-            <option value="">Consumidor não identificado</option>
-          </select>
-          <div id="pontosContainer" style="display:none;margin-top:.5rem;padding:.5rem;background:var(--bg-tertiary);border-radius:4px;font-size:.85rem;align-items:center;justify-content:space-between;">
-            <span>Pontos: <strong id="clientePontosSaldo" style="color:var(--primary);">0</strong></span>
-            <button id="btnUsarPontos" class="btn btn-secondary btn-sm" style="padding:.15rem .4rem;" onclick="usarPontos()">Resgatar</button>
+        <div id="pontosContainer" style="display:none; flex-direction:column; gap:0.25rem; font-size:0.75rem; color:var(--text-secondary); border-top:1px dashed var(--border); padding-top:0.5rem; margin-top:0.5rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span>Pontos Fidelidade: <strong id="clientePontosSaldo" style="color:var(--primary); font-weight:700;">0</strong></span>
+            <button id="btnUsarPontos" class="btn btn-secondary btn-sm" style="padding:0.15rem 0.5rem; font-size:0.7rem; font-weight:bold;" onclick="usarPontos()">Resgatar</button>
           </div>
         </div>
-
-        <div style="margin-bottom:.75rem; border-top:1px solid var(--border); padding-top:.75rem;">
-          <div style="display:flex; align-items:center; gap:.5rem;">
-            <input type="checkbox" id="pdvDelivery" onchange="toggleDelivery()">
-            <label for="pdvDelivery" style="font-size:0.85rem;font-weight:600;cursor:pointer;">Pedido para Entrega (Delivery)</label>
+      </div>
+      
+      <!-- Painel Direito: Resumo de Cálculos -->
+      <div class="totals-card">
+        <div>
+          <div class="totals-row">
+            <span>Subtotal</span>
+            <strong id="cartSubtotal">R$ 0,00</strong>
           </div>
-          <div id="deliveryContainer" style="display:none; margin-top:.5rem; flex-direction:column; gap:.5rem;">
-            <input type="text" id="pdvEndEntrega" placeholder="Endereço de entrega..." style="padding:0.4rem; border-radius:var(--radius-sm); border:1px solid var(--border); width:100%;">
-            <div class="input-group" style="margin:0;">
-              <label>Taxa de Entrega (R$)</label>
-              <input type="number" id="pdvTaxaEntrega" min="0" step="0.01" value="0.00" oninput="renderizarCarrinho()" style="padding:0.4rem; border-radius:var(--radius-sm); border:1px solid var(--border);">
-            </div>
-          </div>
-        </div>
-
-        <div style="margin-bottom:.75rem; border-top:1px solid var(--border); padding-top:.75rem;">
-          <label style="display:block;margin-bottom:0.5rem;font-size:0.85rem;color:var(--text-secondary);font-weight:600;">Múltiplos Pagamentos</label>
-          <div class="payment-list" id="paymentList"></div>
-          
-          <div style="display:flex; gap:0.5rem; align-items:center; margin-bottom: 0.5rem;">
-             <select id="pagTipo" style="padding:0.4rem; border-radius:4px; border:1px solid var(--border); flex:1;">
-               <option value="dinheiro">Dinheiro</option>
-               <option value="pix">PIX</option>
-               <option value="credito">Cartão Crédito</option>
-               <option value="debito">Cartão Débito</option>
-               <option value="fiado">Fiado / Crediário</option>
-             </select>
-             <input type="number" id="pagValor" placeholder="0,00" step="0.01" style="padding:0.4rem; border-radius:4px; border:1px solid var(--border); width:80px;">
-             <button class="btn btn-secondary btn-sm" onclick="adicionarPagamento()">Adicionar</button>
-          </div>
-          
-          <div style="display:flex; justify-content:space-between; font-size: 0.85rem; margin-top:0.5rem;">
-            <span>Falta pagar: <strong id="lblFaltaPagar" style="color:var(--danger)">R$ 0,00</strong></span>
-            <span id="lblTrocoInfo" style="color:var(--success); display:none;">Troco: <strong>R$ 0,00</strong></span>
+          <div class="totals-row" id="cupomRow" style="display:none; color:var(--success);">
+            <span id="cupomLabel">Desconto (Cupom)</span>
+            <strong id="cartDesconto">- R$ 0,00</strong>
           </div>
         </div>
+        
+        <div class="grand-total-row">
+          <span class="grand-total-label">Total a Pagar</span>
+          <span class="grand-total-value" id="cartTotal">R$ 0,00</span>
+        </div>
+      </div>
+    </footer>
+  </main>
 
-        <button class="btn btn-success btn-lg btn-block" id="btnFinalizar" onclick="tentarFinalizarVenda()" disabled>
-          ✅ Finalizar Venda
-        </button>
+  <!-- ── Coluna Central: Action Grid (Grade de Ações e Pagamento) ── -->
+  <section class="pdv-actions">
+    <!-- Grid de Ações Rápidas (igual ao layout de botões do print) -->
+    <div class="action-grid">
+      <!-- Fidelidade / Resgate -->
+      <div class="action-tile tile-green" onclick="focarCliente()">
+        <i data-lucide="user" class="action-tile-icon"></i>
+        <div class="action-tile-label">Identificar<br>Cliente</div>
+      </div>
+      
+      <!-- Delivery Toggle -->
+      <div class="action-tile tile-green" onclick="clickDeliveryTile()">
+        <i data-lucide="truck" class="action-tile-icon"></i>
+        <div style="display:flex; align-items:center; gap:0.25rem;">
+          <input type="checkbox" id="pdvDelivery" onchange="toggleDelivery()" style="width:14px; height:14px; margin:0;" onclick="event.stopPropagation()">
+          <label for="pdvDelivery" class="action-tile-label" style="cursor:pointer; margin:0;" onclick="event.stopPropagation()">Entrega<br>Delivery</label>
+        </div>
+      </div>
+      
+      <!-- Cupom de Desconto -->
+      <div class="action-tile tile-grey" style="aspect-ratio:auto; height:90px;" onclick="focarCupom()">
+        <i data-lucide="ticket" class="action-tile-icon"></i>
+        <div style="width:100%; display:flex; gap:0.25rem;">
+          <input id="cupomInput" type="text" placeholder="Cupom..." style="text-transform:uppercase; padding:0.25rem; font-size:0.75rem; border-radius:4px; border:1px solid var(--border); flex:1; min-width:0;" onclick="event.stopPropagation()">
+          <button class="btn btn-secondary btn-sm" onclick="aplicarCupom(); event.stopPropagation()" style="padding:0.25rem 0.5rem; font-size:0.7rem; font-weight:bold;">Ok</button>
+        </div>
+      </div>
+      
+      <!-- Desconto Manual -->
+      <div class="action-tile tile-grey" style="aspect-ratio:auto; height:90px;">
+        <i data-lucide="percent" class="action-tile-icon"></i>
+        <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+          <span class="action-tile-label">Desc. Manual (R$)</span>
+          <input id="descManualInput" type="number" step="0.01" value="0.00" oninput="renderizarCarrinho()" style="text-align:right; max-width:80px; padding:0.25rem; font-size:0.75rem; border-radius:4px; border:1px solid var(--border);" onclick="event.stopPropagation()">
+        </div>
+      </div>
+    </div>
+    
+    <!-- Endereço de Entrega (se delivery ativado) -->
+    <div id="deliveryContainer" style="display:none; flex-direction:column; gap:0.5rem; background:var(--bg-base); padding:0.75rem; border-radius:var(--radius-sm); border:1px solid var(--border); margin-bottom:1rem; animation:fadeSlideUp 0.2s ease;">
+      <div class="input-group" style="margin:0;">
+        <label style="font-size:0.7rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Endereço de Entrega</label>
+        <input type="text" id="pdvEndEntrega" placeholder="Endereço completo de entrega..." style="padding:0.4rem; font-size:0.8rem;">
+      </div>
+      <div class="input-group" style="margin:0;">
+        <label style="font-size:0.7rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase;">Taxa de Frete / Entrega (R$)</label>
+        <input type="number" id="pdvTaxaEntrega" min="0" step="0.01" value="0.00" oninput="renderizarCarrinho()" style="padding:0.4rem; font-size:0.8rem;">
+      </div>
+    </div>
+    
+    <!-- Sessão de Pagamento Multi-métodos (igual ao print) -->
+    <div class="payment-section">
+      <h4 style="font-size:0.8rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; border-bottom:1px solid var(--border); padding-bottom:0.25rem;">Método de Pagamento</h4>
+      <div class="payment-inputs">
+        <select id="pagTipo" style="padding:0.45rem; font-size:0.8rem; border-radius:4px; border:1px solid var(--border); background:#ffffff; font-weight:600; flex:1; outline:none; cursor:pointer;">
+          <option value="dinheiro">Dinheiro</option>
+          <option value="pix">PIX</option>
+          <option value="credito">Cartão de Crédito</option>
+          <option value="debito">Cartão de Débito</option>
+          <option value="fiado">Fiado / Crediário</option>
+        </select>
+        <input type="number" id="pagValor" placeholder="0,00" step="0.01" style="padding:0.45rem; font-size:0.8rem; border-radius:4px; border:1px solid var(--border); text-align:right; font-weight:600;">
+      </div>
+      <button class="btn btn-secondary btn-sm btn-block" onclick="adicionarPagamento()" style="margin-top:0.5rem; font-weight:bold; font-size:0.8rem; padding:0.45rem;">➕ Adicionar Parcela</button>
+      
+      <!-- Balanço e Falta Pagar -->
+      <div style="display:flex; justify-content:space-between; font-size: 0.8rem; margin-top:0.75rem; border-top:1px dashed var(--border); padding-top:0.5rem;">
+        <span style="font-weight:600;">Pendente: <strong id="lblFaltaPagar" style="color:var(--danger)">R$ 0,00</strong></span>
+        <span id="lblTrocoInfo" style="color:var(--success); display:none; font-weight:700;">Troco: <strong>R$ 0,00</strong></span>
+      </div>
+    </div>
+    
+    <!-- Botão de Finalizar Venda Prominente (igual ao checkout do print) -->
+    <button class="btn btn-success btn-lg btn-block" id="btnFinalizar" onclick="tentarFinalizarVenda()" disabled style="margin-top:1.5rem; padding:1rem; font-size:1rem; font-weight:bold; border-radius:var(--radius-sm); box-shadow:0 4px 12px rgba(35,83,71,0.2);">
+      💾 Concluir Venda
+    </button>
+  </section>
+
+  <!-- ── Coluna Direita: Strip Vertical de Atalhos (igual ao print) ── -->
+  <aside class="pdv-vertical-strip">
+    <button class="strip-button active" onclick="changeSidebarMode('home', this)" title="Home / Ledger">
+      <i data-lucide="layout-grid"></i>
+      <span>Geral</span>
+    </button>
+    <button class="strip-button" id="btnStripProducts" onclick="toggleProductsDrawer()" title="Catálogo de Produtos">
+      <i data-lucide="package"></i>
+      <span>Produtos</span>
+    </button>
+    <button class="strip-button" onclick="limparCarrinho()" title="Limpar Carrinho / Venda">
+      <i data-lucide="trash-2"></i>
+      <span>Limpar</span>
+    </button>
+    <button class="strip-button" onclick="location.href='admin.html'" title="Voltar ao Painel Administrativo" style="margin-top:auto;">
+      <i data-lucide="settings"></i>
+      <span>Config</span>
+    </button>
+  </aside>
+
+</div>
+
+<!-- Sliding Products Drawer overlaying actions -->
+<div class="products-drawer" id="productsDrawer">
+  <div class="drawer-header">
+    <h3>📦 Catálogo de Produtos</h3>
+    <button class="modal-close" onclick="toggleProductsDrawer()">✕</button>
+  </div>
+  <div class="drawer-body">
+    <!-- Category Chips (Dinâmicos) -->
+    <div class="filter-bar" id="filterCats"></div>
+    
+    <!-- Grid de Produtos e Kits -->
+    <div class="products-grid" id="productsGrid">
+      <div class="empty-state" style="padding:2rem 0;">
+        <div class="es-icon">⏳</div>
+        <p>Carregando catálogo...</p>
       </div>
     </div>
   </div>
@@ -193,17 +720,68 @@
 
 <!-- Modal de sucesso -->
 <div id="modalSucesso" class="modal-backdrop" style="display:none; z-index:9999;">
-  <div class="modal" style="width:min(360px,95vw);text-align:center;">
-    <div class="modal-body" style="align-items:center;gap:1.25rem;padding:2rem;">
-      <div style="font-size:3.5rem;animation:fadeSlideUp .4s ease;">✅</div>
+  <div class="modal" style="width:min(360px,95vw); text-align:center;">
+    <div class="modal-body" style="align-items:center; gap:1.25rem; padding:2rem;">
+      <div style="font-size:3.5rem; animation:fadeSlideUp .4s ease;">✅</div>
       <h2>Venda Concluída!</h2>
-      <p id="sucessoInfo" style="color:var(--text-secondary);font-size:.9rem;"></p>
+      <p id="sucessoInfo" style="color:var(--text-secondary); font-size:.9rem;"></p>
       <button class="btn btn-primary btn-block" onclick="novaVenda()">Nova Venda</button>
     </div>
   </div>
 </div>
 
+<!-- Scripts -->
 <script src="js/api.js"></script>
 <script src="js/pdv.js"></script>
+<script>
+  // Inicialização de Ícones Lucide
+  document.addEventListener('DOMContentLoaded', () => {
+    if (window.lucide) lucide.createIcons();
+  });
+
+  // Funções Utilitárias de Interface para a Nova Estrutura
+  function toggleProductsDrawer() {
+    const drawer = document.getElementById('productsDrawer');
+    const btn = document.getElementById('btnStripProducts');
+    drawer.classList.toggle('open');
+    btn.classList.toggle('active');
+  }
+
+  function changeLedgerTab(tab) {
+    document.getElementById('tabLines').classList.remove('active');
+    document.getElementById('tabPayments').classList.remove('active');
+    document.getElementById('ledgerLinesContainer').style.display = 'none';
+    document.getElementById('ledgerPaymentsContainer').style.display = 'none';
+    
+    if (tab === 'lines') {
+      document.getElementById('tabLines').classList.add('active');
+      document.getElementById('ledgerLinesContainer').style.display = 'block';
+    } else {
+      document.getElementById('tabPayments').classList.add('active');
+      document.getElementById('ledgerPaymentsContainer').style.display = 'block';
+    }
+  }
+
+  function clickDeliveryTile() {
+    const cb = document.getElementById('pdvDelivery');
+    cb.checked = !cb.checked;
+    toggleDelivery();
+  }
+
+  function focarCliente() {
+    document.getElementById('pdvClienteSelect').focus();
+  }
+
+  function focarCupom() {
+    document.getElementById('cupomInput').focus();
+  }
+
+  // Intercepta e decora a função original de adicionar pagamentos para redirecionar visualmente para a aba Payments
+  const origAdicionarPagamento = window.adicionarPagamento;
+  window.adicionarPagamento = function() {
+    origAdicionarPagamento();
+    changeLedgerTab('payments'); // Foca nos pagamentos adicionados
+  };
+</script>
 </body>
 </html>
