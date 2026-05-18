@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 const { Pool } = require('pg');
 
@@ -11,7 +12,19 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 pool.connect()
-  .then(() => console.log('✅ Conectado ao PostgreSQL'))
+  .then(async () => {
+    console.log('✅ Conectado ao PostgreSQL');
+    try {
+      const sqlPath = path.join(__dirname, 'db', 'migrations_financeiro.sql');
+      if (fs.existsSync(sqlPath)) {
+        const sql = fs.readFileSync(sqlPath, 'utf8');
+        await pool.query(sql);
+        console.log('✅ Migrações financeiras aplicadas com sucesso!');
+      }
+    } catch (migErr) {
+      console.error('⚠️ Erro ao aplicar migrações financeiras:', migErr.message);
+    }
+  })
   .catch(err => console.error('Erro ao conectar ao banco:', err.message));
 
 const asyncGet = (sql, params = []) => pool.query(sql, params).then(r => r.rows[0]);
